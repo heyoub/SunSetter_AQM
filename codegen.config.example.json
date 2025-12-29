@@ -1,0 +1,33 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "your_database_name",
+    "username": "your_username",
+    "password": "your_password",
+    "ssl": false,
+    "connectionTimeoutMillis": 10000,
+    "idleTimeoutMillis": 30000,
+    "max": 10
+  },
+  "generator": {
+    "outputDir": "./generated",
+    "generateModels": true,
+    "generateRepositories": true,
+    "generateServices": true,
+    "generateValidators": true,
+    "generateConvexSchema": false,
+    "generateMigrations": false,
+    "useZod": true,
+    "useClassValidator": false
+  },
+  "typeMapping": {
+    "useStrict": true,
+    "useBigInt": true,
+    "useDate": true,
+    "useDecimal": false,
+    "enumAsUnion": true,
+    "nullableAsOptional": true
+  },
+  "version": "1.0.0"
+}

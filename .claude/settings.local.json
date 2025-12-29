@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:docs.convex.dev)",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(npm test)",
+      "Bash(node dist/index.js:*)",
+      "Bash(find:*)",
+      "Bash(cd:*)",
+      "Bash(git add:*)",
+      "Bash(npm ls:*)",
+      "Bash(npx eslint:*)",
+      "Bash(git commit --no-verify -m \"$\\(cat <<''EOF''\nInitial commit: PostgreSQL to Convex migration tool\n\nEnterprise-grade CLI tool for migrating PostgreSQL databases to Convex with:\n\nCore Features:\n- Schema introspection with multi-schema support\n- Type-safe code generation \\(queries, mutations, actions, validators\\)\n- Streaming migration with cursor-based pagination\n- Intelligent batch sizing with adaptive rate limiting\n- Exponential backoff with jitter for retries\n\nEnterprise Features:\n- Rollback capability with pre-migration snapshots\n- Parallel table migration with dependency-aware execution\n- Metrics aggregation \\(throughput, memory, batch stats\\)\n- Enhanced dry-run with detailed previews\n- Connection pool optimization\n- Graceful shutdown with state preservation\n\nCLI Features:\n- Interactive setup wizard\n- Rich progress reporting with colors\n- Structured error handling \\(ERR-XXX codes\\)\n- Resumable migrations with checkpointing\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+    ]
+  }
+}

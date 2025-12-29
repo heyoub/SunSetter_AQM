@@ -1,0 +1,85 @@
+{
+  "name": "@Heyoub/db.aqm",
+  "version": "1.0.0",
+  "description": "PostgreSQL to Convex Migration Tool - Generate Convex schemas, queries, mutations, validators, types, and migrate data",
+  "main": "dist/index.js",
+  "bin": {
+    "db.aqm": "dist/index.js"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Heyoub/db.aqm"
+  },
+  "homepage": "https://github.com/Heyoub/db.aqm#readme",
+  "bugs": {
+    "url": "https://github.com/Heyoub/db.aqm/issues"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "nodemon --exec ts-node --esm src/index.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts",
+    "format:check": "prettier --check src/**/*.ts",
+    "prepare": "husky install"
+  },
+  "keywords": [
+    "convex",
+    "postgresql",
+    "migration",
+    "database",
+    "code-generation",
+    "typescript",
+    "schema",
+    "cli",
+    "esm",
+    "sql",
+    "introspection",
+    "validators",
+    "queries",
+    "mutations"
+  ],
+  "author": "",
+  "license": "Proprietary",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "cli-progress": "^3.12.0",
+    "commander": "^11.1.0",
+    "convex": "^1.8.0",
+    "dotenv": "^16.3.1",
+    "inquirer": "^9.2.12",
+    "ora": "^7.0.1",
+    "pg": "^8.11.3",
+    "uuid": "^9.0.1",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/cli-progress": "^3.11.5",
+    "@types/inquirer": "^9.0.7",
+    "@types/jest": "^29.5.8",
+    "@types/node": "^20.10.5",
+    "@types/pg": "^8.10.9",
+    "@types/uuid": "^9.0.7",
+    "@types/winston": "^2.4.4",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.1",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "husky": "^8.0.3",
+    "jest": "^29.7.0",
+    "lint-staged": "^15.2.0",
+    "nodemon": "^3.0.2",
+    "prettier": "^3.1.0",
+    "ts-jest": "^29.1.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

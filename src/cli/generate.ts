@@ -1,4 +1,4 @@
-import { DatabaseConnection } from '../config/database.js';
+import { DatabaseConnection, DatabaseConfig } from '../config/database.js';
 import { SchemaIntrospector } from '../introspector/schema-introspector.js';
 import {
   CodeGenerator,
@@ -7,8 +7,8 @@ import {
 import { TypeMapper } from '../mapper/type-mapper.js';
 
 export async function generateCodeFromDatabase(
-  connectionConfig: any,
-  generatorOptions: any
+  connectionConfig: DatabaseConfig,
+  generatorOptions: GeneratorOptions
 ): Promise<void> {
   const dbConnection = new DatabaseConnection(connectionConfig);
   const introspector = new SchemaIntrospector(dbConnection);

@@ -316,7 +316,8 @@ export class DatabaseConnection {
    * Get the database configuration (without password)
    */
   getConfig(): Omit<EnhancedPoolConfig, 'password'> {
-    const { password, ...configWithoutPassword } = this.config;
+    // Destructure to exclude password from returned config (security pattern)
+    const { password: _excluded, ...configWithoutPassword } = this.config;
     return configWithoutPassword;
   }
 

@@ -15,10 +15,7 @@
  * - POST /api/[table]/webhook - Handle webhooks
  */
 
-import type {
-  TableInfo,
-  ColumnInfo,
-} from '../../introspector/schema-introspector.js';
+import type { TableInfo } from '../../introspector/schema-introspector.js';
 import type {
   HttpActionGeneratorResult,
   ConvexApiVersion,

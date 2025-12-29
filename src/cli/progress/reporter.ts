@@ -15,11 +15,7 @@ import cliProgress from 'cli-progress';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { LogLevel, ProgressStats } from '../../convex/types.js';
-import {
-  formatError,
-  formatErrorJson,
-  MigrationError,
-} from '../errors/index.js';
+import { formatError, MigrationError } from '../errors/index.js';
 
 // ============================================================================
 // Types

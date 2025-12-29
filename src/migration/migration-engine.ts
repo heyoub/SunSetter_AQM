@@ -14,15 +14,9 @@
  */
 
 import { Pool } from 'pg';
-import type {
-  TableInfo,
-  MultiSchemaOptions,
-} from '../introspector/schema-introspector.js';
+import type { TableInfo } from '../introspector/schema-introspector.js';
 import { SchemaIntrospector } from '../introspector/schema-introspector.js';
-import {
-  DatabaseConnection,
-  createOptimizedConnection,
-} from '../config/database.js';
+import { DatabaseConnection } from '../config/database.js';
 import type {
   MigrationConfig,
   MigrationState,
@@ -38,13 +32,9 @@ import type {
   RollbackConfig,
   DryRunResult,
   DryRunTableResult,
-  DEFAULT_MIGRATION_CONFIG,
-  DEFAULT_MULTI_SCHEMA_CONFIG,
-  DEFAULT_ROLLBACK_CONFIG,
-  DEFAULT_PARALLEL_CONFIG,
 } from './types.js';
 import { DependencyResolver } from './dependency-resolver.js';
-import { IdMapper, createIdMapper } from './id-mapper.js';
+import { IdMapper } from './id-mapper.js';
 import { MigrationStateManager } from './migration-state.js';
 import { DataTransformer, createTransformer } from './data-transformer.js';
 import { TableMigrator, TableMigrationResult } from './table-migrator.js';
@@ -549,8 +539,20 @@ export class MigrationEngine {
         }
       }
 
-      // Resolve migration order
+      // Resolve migration order and check for circular dependencies
       const depResult = this.dependencyResolver.resolve(this.tables);
+      if (depResult.circularDeps.length > 0) {
+        // Warn about circular dependencies - they will be handled by nullable FK strategy
+        this.emitEvent({
+          type: 'warning',
+          timestamp: new Date(),
+          migrationId: state?.migrationId || 'initializing',
+          data: {
+            message: `Found ${depResult.circularDeps.length} circular dependencies`,
+            circularDeps: depResult.circularDeps.map((c) => c.path.join(' → ')),
+          },
+        });
+      }
       const migrationOrder = this.dependencyResolver.getMigrationOrder(
         this.tables,
         {
@@ -591,7 +593,7 @@ export class MigrationEngine {
 
       if (parallelEnabled && !this.config.dryRun) {
         // Parallel migration
-        const parallelResult = await this.migrateParallel(state);
+        const parallelResult = await this.migrateParallel();
         tableResults.push(...parallelResult.tableResults);
         errors.push(...parallelResult.errors);
       } else {
@@ -696,9 +698,7 @@ export class MigrationEngine {
   /**
    * Parallel migration using ParallelMigrator
    */
-  private async migrateParallel(
-    state: MigrationState
-  ): Promise<ParallelMigrationResult> {
+  private async migrateParallel(): Promise<ParallelMigrationResult> {
     if (!this.parallelMigrator) {
       const maxParallelTables =
         this.extendedConfig.parallel?.maxParallelTables ?? 4;

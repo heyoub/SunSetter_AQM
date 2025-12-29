@@ -162,22 +162,20 @@ export class DependencyResolver {
    */
   detectCycles(): CircularDependency[] {
     const cycles: CircularDependency[] = [];
-    const WHITE = 0; // Unvisited
-    const GRAY = 1; // In current path
-    const BLACK = 2; // Fully processed
+    const UNVISITED = 0;
 
     const color = new Map<string, number>();
     const parent = new Map<string, string | null>();
 
-    // Initialize all nodes as white
+    // Initialize all nodes as unvisited
     for (const tableName of this.graph.keys()) {
-      color.set(tableName, WHITE);
+      color.set(tableName, UNVISITED);
       parent.set(tableName, null);
     }
 
     // DFS from each unvisited node
     for (const tableName of this.graph.keys()) {
-      if (color.get(tableName) === WHITE) {
+      if (color.get(tableName) === UNVISITED) {
         this.dfsDetectCycle(tableName, color, parent, cycles);
       }
     }

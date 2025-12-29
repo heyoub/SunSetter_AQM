@@ -22,11 +22,7 @@ import {
   createMigrationEngine,
 } from '../../migration/migration-engine.js';
 import { ConvexFunctionGenerator } from '../../generator/convex/index.js';
-import {
-  InteractiveWizard,
-  runWizard,
-  MigrationMode,
-} from '../interactive/wizard.js';
+import { runWizard, MigrationMode } from '../interactive/wizard.js';
 import {
   ProgressReporter,
   ExtendedLogLevel,
@@ -35,7 +31,6 @@ import {
 import {
   formatError,
   MigrationError,
-  ConnectionError,
   ConfigurationError,
   ERROR_CODES,
   createConnectionError,
@@ -208,7 +203,7 @@ function parseNumericOption(
   min: number,
   max: number,
   defaultValue: number,
-  reporter: ProgressReporter
+  _reporter: ProgressReporter
 ): number {
   if (!value) return defaultValue;
 
@@ -237,7 +232,7 @@ function parseNumericOption(
  */
 function getConnectionString(
   options: MigrateOptions,
-  reporter: ProgressReporter
+  _reporter: ProgressReporter
 ): string {
   const connectionString =
     options.connection ||

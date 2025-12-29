@@ -12,15 +12,6 @@ import type { MigrationConfig } from '../../migration/types.js';
 import { ProgressReporter } from '../progress/reporter.js';
 
 /**
- * Wizard step result
- */
-interface WizardStepResult<T> {
-  value: T;
-  skip?: boolean;
-  back?: boolean;
-}
-
-/**
  * Migration mode options
  */
 export type MigrationMode = 'schema-only' | 'schema-and-data' | 'data-only';

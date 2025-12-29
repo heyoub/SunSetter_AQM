@@ -13,12 +13,11 @@ import type {
   MigrationError,
   IConvexClient,
   IIdMapper,
-  DependencyNode,
   TableMigrationResult,
   TableMigrationMetrics,
   AggregatedMigrationMetrics,
 } from './types.js';
-import { TableMigrator, TableMigratorConfig } from './table-migrator.js';
+import { TableMigrator } from './table-migrator.js';
 import { DataTransformer } from './data-transformer.js';
 import { MigrationStateManager } from './migration-state.js';
 import { DependencyResolver } from './dependency-resolver.js';

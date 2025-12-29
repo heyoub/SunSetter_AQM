@@ -63,7 +63,7 @@ ${types.join('\n\n')}
       .filter((col) => !this.shouldSkipColumn(col))
       .map((col) => {
         const fieldName = this.toCamelCase(col.columnName);
-        const tsType = this.getTypeScriptType(col, table);
+        const tsType = this.getTypeScriptType(col);
         const optional = col.isNullable || col.columnDefault ? '?' : '';
         const comment = col.description ? `  /** ${col.description} */\n` : '';
         return `${comment}  ${fieldName}${optional}: ${tsType};`;
@@ -94,7 +94,7 @@ ${fields}
     const fields = createFields
       .map((col) => {
         const fieldName = this.toCamelCase(col.columnName);
-        const tsType = this.getTypeScriptType(col, table);
+        const tsType = this.getTypeScriptType(col);
         const optional = col.isNullable || col.columnDefault ? '?' : '';
         return `  ${fieldName}${optional}: ${tsType};`;
       })
@@ -119,7 +119,7 @@ ${fields}
     const fields = updateFields
       .map((col) => {
         const fieldName = this.toCamelCase(col.columnName);
-        const tsType = this.getTypeScriptType(col, table);
+        const tsType = this.getTypeScriptType(col);
         return `  ${fieldName}?: ${tsType};`;
       })
       .join('\n');
@@ -213,7 +213,7 @@ export interface ${pascalName}ListResponse {
   /**
    * Get TypeScript type for a column
    */
-  private getTypeScriptType(column: ColumnInfo, table: TableInfo): string {
+  private getTypeScriptType(column: ColumnInfo): string {
     // Handle foreign keys
     if (column.isForeignKey && column.foreignKeyTable) {
       return `Id<"${column.foreignKeyTable}">`;

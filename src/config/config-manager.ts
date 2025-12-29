@@ -1,5 +1,4 @@
 import { promises as fs } from 'fs';
-import { join } from 'path';
 import { DatabaseConfig } from './database.js';
 import { GeneratorOptions } from '../generator/code-generator.js';
 import { TypeMappingOptions } from '../mapper/type-mapper.js';

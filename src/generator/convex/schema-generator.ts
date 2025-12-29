@@ -9,11 +9,7 @@ import type {
   TableInfo,
   ColumnInfo,
 } from '../../introspector/schema-introspector.js';
-import {
-  toCamelCase,
-  escapeFieldName,
-  isReservedWord,
-} from '../../shared/types.js';
+import { toCamelCase, escapeFieldName } from '../../shared/types.js';
 
 /**
  * Configuration for search index generation

@@ -111,7 +111,7 @@ ${mutations.join('\n\n')}
     const argsDefinition = createFields
       .map((col) => {
         const fieldName = this.toCamelCase(col.columnName);
-        const validator = this.getConvexValidator(col, table);
+        const validator = this.getConvexValidator(col);
         return `    ${fieldName}: ${validator}`;
       })
       .join(',\n');
@@ -151,7 +151,7 @@ ${insertFields},
     const argsDefinition = updateFields
       .map((col) => {
         const fieldName = this.toCamelCase(col.columnName);
-        let validator = this.getConvexValidator(col, table);
+        let validator = this.getConvexValidator(col);
         // Make all update fields optional
         if (!validator.startsWith('v.optional(')) {
           validator = `v.optional(${validator})`;
@@ -226,7 +226,7 @@ export const remove = mutation({
     const itemValidator = createFields
       .map((col) => {
         const fieldName = this.toCamelCase(col.columnName);
-        const validator = this.getConvexValidator(col, table);
+        const validator = this.getConvexValidator(col);
         return `      ${fieldName}: ${validator}`;
       })
       .join(',\n');
@@ -294,7 +294,7 @@ export const batchRemove = mutation({
     const argsDefinition = createFields
       .map((col) => {
         const fn = this.toCamelCase(col.columnName);
-        const validator = this.getConvexValidator(col, table);
+        const validator = this.getConvexValidator(col);
         return `    ${fn}: ${validator}`;
       })
       .join(',\n');
@@ -380,7 +380,7 @@ ${argsDefinition},
   /**
    * Get Convex validator for a column
    */
-  private getConvexValidator(column: ColumnInfo, table: TableInfo): string {
+  private getConvexValidator(column: ColumnInfo): string {
     // Handle foreign keys
     if (column.isForeignKey && column.foreignKeyTable) {
       const base = `v.id("${column.foreignKeyTable}")`;

@@ -97,7 +97,7 @@ export class DataTransformer {
       const value = row[column.columnName];
 
       try {
-        const transformedValue = this.transformValue(value, column, table);
+        const transformedValue = this.transformValue(value, column);
 
         // Handle null values
         if (transformedValue === null || transformedValue === undefined) {
@@ -161,11 +161,7 @@ export class DataTransformer {
   /**
    * Transform a single value based on column type
    */
-  private transformValue(
-    value: unknown,
-    column: ColumnInfo,
-    table: TableInfo
-  ): unknown {
+  private transformValue(value: unknown, column: ColumnInfo): unknown {
     // Handle null/undefined
     if (value === null || value === undefined) {
       return null;
@@ -603,7 +599,7 @@ export class DataTransformer {
   } {
     if (typeof value === 'string') {
       // Parse "[lower,upper)" format
-      const match = value.match(/([[\(])([^,]*),([^)\]]*)([)\]])/);
+      const match = value.match(/([[(])([^,]*),([^)\]]*)([)\]])/);
       if (match) {
         return {
           lower: match[2] || null,

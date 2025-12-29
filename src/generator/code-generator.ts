@@ -297,7 +297,6 @@ export class ${serviceName} implements ${serviceName}Interface {
       return;
     }
 
-    const modelName = this.toPascalCase(table.tableName);
     const fileName = `${this.toKebabCase(table.tableName)}.validator.ts`;
     const filePath = join(this.options.outputDir, 'validators', fileName);
 
@@ -394,7 +393,6 @@ ${validatorFields}
   }
 
   private async generateConvexSchema(table: TableInfo): Promise<void> {
-    const modelName = this.toPascalCase(table.tableName);
     const fileName = `${this.toKebabCase(table.tableName)}.convex.ts`;
     const filePath = join(this.options.outputDir, 'convex', fileName);
 

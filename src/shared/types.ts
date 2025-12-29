@@ -143,7 +143,8 @@ export type MigrationEventType =
   | 'batch:error'
   | 'row:success'
   | 'row:error'
-  | 'row:skip';
+  | 'row:skip'
+  | 'warning';
 
 /**
  * Migration event payload

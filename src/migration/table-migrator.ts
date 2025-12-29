@@ -10,7 +10,7 @@
  * - Graceful abort handling with checkpoint saving
  */
 
-import type { Pool, PoolClient, QueryResult } from 'pg';
+import type { Pool } from 'pg';
 import { Readable, Transform } from 'stream';
 import type { TableInfo } from '../introspector/schema-introspector.js';
 import type {
@@ -22,7 +22,6 @@ import type {
   IIdMapper,
   TableMigrationOptions,
   MigrationError,
-  BatchInsertResult,
   TokenBucket,
   MigrationEvent,
   MigrationEventHandler,
@@ -722,7 +721,7 @@ export class TableMigrator {
     rows: PostgresRow[],
     documents: ConvexDocument[],
     options: TableMigrationOptions,
-    batchNumber: number
+    _batchNumber: number
   ): Promise<BatchResult> {
     const result: BatchResult = {
       success: false,
@@ -809,7 +808,7 @@ export class TableMigrator {
     table: TableInfo,
     rows: PostgresRow[],
     documents: ConvexDocument[],
-    options: TableMigrationOptions
+    _options: TableMigrationOptions
   ): Promise<BatchResult> {
     const result: BatchResult = {
       success: true,

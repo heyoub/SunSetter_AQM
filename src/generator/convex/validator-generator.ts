@@ -78,7 +78,7 @@ export const ${camelName}Validators = {
       .filter((col) => !this.shouldSkipColumn(col))
       .map((col) => {
         const fieldName = this.toCamelCase(col.columnName);
-        const validator = this.getConvexValidator(col, table);
+        const validator = this.getConvexValidator(col);
         return `  ${fieldName}: ${validator}`;
       })
       .join(',\n');
@@ -104,7 +104,7 @@ ${fields},
     const fields = createFields
       .map((col) => {
         const fieldName = this.toCamelCase(col.columnName);
-        const validator = this.getConvexValidator(col, table);
+        const validator = this.getConvexValidator(col);
         return `  ${fieldName}: ${validator}`;
       })
       .join(',\n');
@@ -130,7 +130,7 @@ ${fields},
     const fields = updateFields
       .map((col) => {
         const fieldName = this.toCamelCase(col.columnName);
-        let validator = this.getConvexValidator(col, table);
+        let validator = this.getConvexValidator(col);
         // Wrap in optional if not already
         if (!validator.startsWith('v.optional(')) {
           validator = `v.optional(${validator})`;
@@ -185,7 +185,7 @@ export const ${camelName}FilterValidator = v.object({});`;
     const fields = filterableFields
       .map((col) => {
         const fieldName = this.toCamelCase(col.columnName);
-        const baseValidator = this.getConvexValidator(col, table);
+        const baseValidator = this.getConvexValidator(col);
         // Make filter fields optional
         const validator = baseValidator.startsWith('v.optional(')
           ? baseValidator
@@ -291,7 +291,7 @@ ${fields},
   /**
    * Get Convex validator for a column
    */
-  private getConvexValidator(column: ColumnInfo, table: TableInfo): string {
+  private getConvexValidator(column: ColumnInfo): string {
     // Handle foreign keys
     if (column.isForeignKey && column.foreignKeyTable) {
       const base = `v.id("${column.foreignKeyTable}")`;

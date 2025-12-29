@@ -63,11 +63,7 @@ export class RelationshipAnalyzer {
       }
 
       for (const fk of table.foreignKeys) {
-        const cardinality = this.determineCardinality(
-          table,
-          fk,
-          junctionTables
-        );
+        const cardinality = this.determineCardinality(table, fk);
 
         relationships.push({
           sourceTable: table.tableName,
@@ -350,8 +346,7 @@ export class RelationshipAnalyzer {
    */
   private determineCardinality(
     sourceTable: TableInfo,
-    fk: ForeignKeyInfo,
-    junctionTables: Set<string>
+    fk: ForeignKeyInfo
   ): RelationshipCardinality {
     // Check if source column is the primary key or has unique constraint
     const isSourceUnique =

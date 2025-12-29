@@ -59,6 +59,152 @@ Supports: PostgreSQL, MySQL, SQLite, SQL Server
   // Add seed-export command
   program.addCommand(createSeedExportCommand());
 
+  // Add preflight command
+  program
+    .command('preflight')
+    .description('Run preflight checks before migration')
+    .requiredOption('-c, --connection <string>', 'Database connection string')
+    .option(
+      '--db-type <type>',
+      'Database type (auto-detected if not specified)'
+    )
+    .option('-t, --tables <list>', 'Comma-separated list of tables to check')
+    .option('-e, --exclude <list>', 'Comma-separated list of tables to exclude')
+    .option('--json', 'Output results as JSON')
+    .action(async (options) => {
+      const { PreflightChecker } = await import('./cli/preflight.js');
+      const { DatabaseConnection } = await import('./config/database.js');
+      const { SchemaIntrospector } = await import(
+        './introspector/schema-introspector.js'
+      );
+      const { ProgressReporter } = await import('./cli/progress/reporter.js');
+      const { parseConnectionString } = await import('./adapters/index.js');
+
+      try {
+        const reporter = new ProgressReporter({
+          logLevel: options.json ? 'quiet' : 'normal',
+          json: options.json || false,
+        });
+
+        // Parse connection string
+        const config = parseConnectionString(options.connection);
+
+        // Create database connection
+        // Convert SSLOptions to SSLConfig if needed
+        const sslConfig =
+          typeof config.ssl === 'object'
+            ? { enabled: true, ...config.ssl }
+            : config.ssl || false;
+        const dbConnection = new DatabaseConnection({
+          host: config.host || 'localhost',
+          port: config.port || 5432,
+          database: config.database || '',
+          username: config.user || '',
+          password: config.password || '',
+          ssl: sslConfig,
+        });
+
+        reporter.startSpinner('Connecting to database...');
+        if (!(await dbConnection.testConnection())) {
+          reporter.failSpinner('Failed to connect to database');
+          process.exit(3);
+        }
+        reporter.succeedSpinner('Connected to database');
+
+        // Introspect schema
+        reporter.startSpinner('Introspecting schema...');
+        const introspector = new SchemaIntrospector(dbConnection);
+        const schema = await introspector.introspectSchema('public');
+        let tables = schema.tables;
+
+        // Apply filters
+        if (options.tables) {
+          const includeSet = new Set(
+            options.tables.split(',').map((t: string) => t.trim())
+          );
+          tables = tables.filter((t) => includeSet.has(t.tableName));
+        }
+        if (options.exclude) {
+          const excludeSet = new Set(
+            options.exclude.split(',').map((t: string) => t.trim())
+          );
+          tables = tables.filter((t) => !excludeSet.has(t.tableName));
+        }
+
+        reporter.succeedSpinner(`Found ${tables.length} tables to check`);
+
+        // Run preflight checks
+        reporter.startSpinner('Running preflight checks...');
+        const checker = new PreflightChecker(dbConnection);
+        const result = await checker.check(tables);
+        reporter.succeedSpinner('Preflight checks complete');
+
+        // Output results
+        if (options.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          // Print summary
+          reporter.section('Preflight Summary');
+          reporter.printSummary({
+            'Total Tables': result.tables.length,
+            'Total Rows': result.totalRows.toLocaleString(),
+            'Estimated Time (realistic)': `${Math.round(result.estimatedDuration.realistic / 60)}m`,
+            'Memory Required': `${result.resourceEstimates.memoryMB}MB`,
+            Blockers: result.blockers.length,
+            Warnings:
+              result.schemaWarnings.length + result.cascadeWarnings.length,
+          });
+
+          // Show blockers
+          if (result.blockers.length > 0) {
+            console.log();
+            reporter.subsection('Blockers (must fix before migration):');
+            result.blockers.forEach((blocker) => {
+              reporter.error(blocker);
+            });
+          }
+
+          // Show warnings
+          if (result.schemaWarnings.length > 0) {
+            console.log();
+            reporter.subsection('Schema Warnings:');
+            result.schemaWarnings.forEach((warning) => {
+              reporter.warn(warning);
+            });
+          }
+
+          // Show recommendations
+          if (result.recommendations.length > 0) {
+            console.log();
+            reporter.subsection('Recommendations:');
+            result.recommendations.forEach((rec) => {
+              reporter.info(rec);
+            });
+          }
+
+          // Show status
+          console.log();
+          if (result.valid) {
+            reporter.box(
+              'Preflight checks passed! Ready to migrate.',
+              'success'
+            );
+          } else {
+            reporter.box(
+              'Preflight checks failed. Please address blockers above.',
+              'error'
+            );
+          }
+        }
+
+        await dbConnection.close();
+        process.exit(result.valid ? 0 : 2);
+      } catch (error) {
+        console.error(chalk.red('Preflight error:'), (error as Error).message);
+        process.exit(1);
+      }
+    });
+
   program
     .command('generate')
     .description('Generate TypeScript code from database schema')

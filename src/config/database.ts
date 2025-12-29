@@ -158,7 +158,7 @@ export class DatabaseConnection {
   /**
    * Execute a query with timing and stats tracking
    */
-  async query<T = any>(text: string, params?: any[]): Promise<T[]> {
+  async query<T = unknown>(text: string, params?: unknown[]): Promise<T[]> {
     const startTime = Date.now();
     const client = await this.pool.connect();
     try {
@@ -174,8 +174,8 @@ export class DatabaseConnection {
   /**
    * Execute a query within a transaction
    */
-  async queryInTransaction<T = any>(
-    queries: Array<{ text: string; params?: any[] }>
+  async queryInTransaction<T = unknown>(
+    queries: Array<{ text: string; params?: unknown[] }>
   ): Promise<T[][]> {
     const client = await this.pool.connect();
     const results: T[][] = [];
@@ -211,8 +211,8 @@ export class DatabaseConnection {
   /**
    * Execute a batch of queries in parallel (where order doesn't matter)
    */
-  async queryBatch<T = any>(
-    queries: Array<{ text: string; params?: any[] }>
+  async queryBatch<T = unknown>(
+    queries: Array<{ text: string; params?: unknown[] }>
   ): Promise<T[][]> {
     const promises = queries.map(async (query) => {
       const startTime = Date.now();
@@ -300,8 +300,8 @@ export class DatabaseConnection {
     this.healthCheckInterval = setInterval(async () => {
       try {
         await this.query('SELECT 1');
-      } catch (error) {
-        console.error('Health check failed:', error);
+      } catch {
+        // Silently track connection errors - don't spam console
         this.stats.connectionErrors++;
       }
     }, intervalMs);

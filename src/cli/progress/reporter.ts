@@ -207,6 +207,9 @@ export class ProgressReporter {
   private logger: Logger;
   private currentProgressTotal: number = 0;
   private currentProgressValue: number = 0;
+  private progressStartTime: number = 0;
+  private throughputHistory: number[] = [];
+  private lastProgressUpdate: number = 0;
 
   constructor(options: Partial<ProgressReporterConfig> = {}) {
     this.config = {
@@ -541,10 +544,71 @@ export class ProgressReporter {
 
     this.currentProgressTotal = total;
     this.currentProgressValue = 0;
+    this.progressStartTime = Date.now();
+    this.throughputHistory = [];
+    this.lastProgressUpdate = Date.now();
 
     this.progressBar = new cliProgress.SingleBar(
       {
-        format: `  ${chalk.cyan('{bar}')} {percentage}% | ${chalk.gray('{value}/{total}')} ${label} | ETA: {eta_formatted}`,
+        format: (
+          options: cliProgress.Options,
+          params: cliProgress.Params,
+          _payload: Record<string, unknown>
+        ) => {
+          const bar = chalk.cyan(
+            params.progress >= 1
+              ? '\u2588'.repeat(options.barsize || 40)
+              : '\u2588'.repeat(
+                  Math.round((params.progress || 0) * (options.barsize || 40))
+                ) +
+                  '\u2591'.repeat(
+                    (options.barsize || 40) -
+                      Math.round(
+                        (params.progress || 0) * (options.barsize || 40)
+                      )
+                  )
+          );
+
+          const percentage = `${Math.round((params.progress || 0) * 100)}%`;
+          const valueDisplay = chalk.gray(`${params.value}/${params.total}`);
+
+          // Calculate throughput-based ETA
+          const elapsedSec = (Date.now() - this.progressStartTime) / 1000;
+          const itemsProcessed = params.value || 0;
+          const itemsRemaining = (params.total || 0) - itemsProcessed;
+          const elapsedDisplay = chalk.gray(
+            `${this.formatDuration(Math.round(elapsedSec))}`
+          );
+
+          let etaDisplay =
+            (params as cliProgress.Params & { eta_formatted?: string })
+              .eta_formatted || 'N/A';
+          if (this.throughputHistory.length > 0 && itemsProcessed > 0) {
+            const avgThroughput =
+              this.throughputHistory.reduce((a, b) => a + b, 0) /
+              this.throughputHistory.length;
+            if (avgThroughput > 0) {
+              const refinedEta = Math.ceil(itemsRemaining / avgThroughput);
+              etaDisplay = this.formatDuration(refinedEta);
+            }
+          }
+
+          // Get memory usage
+          const memUsage = process.memoryUsage();
+          const memMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+          const memDisplay = chalk.gray(`Mem: ${memMB}MB`);
+
+          // Throughput display
+          const throughput =
+            this.throughputHistory.length > 0
+              ? Math.round(
+                  this.throughputHistory[this.throughputHistory.length - 1]
+                )
+              : 0;
+          const throughputDisplay = chalk.gray(`${throughput}/s`);
+
+          return `  ${bar} ${percentage} | ${valueDisplay} ${label} | ${throughputDisplay} | ${elapsedDisplay} / ${etaDisplay} | ${memDisplay}`;
+        },
         barCompleteChar: '\u2588',
         barIncompleteChar: '\u2591',
         hideCursor: true,
@@ -558,11 +622,43 @@ export class ProgressReporter {
   }
 
   /**
+   * Format duration in seconds to human-readable string
+   */
+  private formatDuration(seconds: number): string {
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}m ${secs}s`;
+    }
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    return `${hours}h ${mins}m`;
+  }
+
+  /**
    * Update progress bar value
    */
   updateProgressBar(current: number, payload?: object): void {
     if (this.progressBar) {
       this.currentProgressValue = current;
+
+      // Calculate throughput
+      const now = Date.now();
+      const timeDiff = (now - this.lastProgressUpdate) / 1000; // in seconds
+      if (timeDiff > 0) {
+        const itemsProcessed = current - (this.currentProgressValue || 0);
+        const throughput = itemsProcessed / timeDiff;
+        this.throughputHistory.push(throughput);
+
+        // Keep only last 10 measurements for rolling average
+        if (this.throughputHistory.length > 10) {
+          this.throughputHistory.shift();
+        }
+
+        this.lastProgressUpdate = now;
+      }
+
       this.progressBar.update(current, payload);
     } else {
       // Non-interactive mode: log progress at intervals

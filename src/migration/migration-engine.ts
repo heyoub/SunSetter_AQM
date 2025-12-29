@@ -50,6 +50,10 @@ import {
   ParallelMigrator,
   ParallelMigrationResult,
 } from './parallel-migrator.js';
+import { HookExecutor } from './hooks.js';
+import { SlackNotifier } from './notifications.js';
+import { MemoryMonitor } from './memory-monitor.js';
+import { DataMasker } from './data-masking.js';
 
 /**
  * Extended migration configuration with enterprise features
@@ -83,7 +87,10 @@ class MockConvexClient implements IConvexClient {
   async delete(): Promise<void> {
     // Mock - do nothing
   }
-  async batchDelete(_tableName: string, documentIds: ConvexId[]): Promise<number> {
+  async batchDelete(
+    _tableName: string,
+    documentIds: ConvexId[]
+  ): Promise<number> {
     return documentIds.length; // Mock - pretend we deleted them
   }
   async truncateTable(): Promise<number> {
@@ -183,7 +190,10 @@ export class ConvexHttpClient implements IConvexClient {
    * Delete multiple documents by ID
    * Calls the generated `batchRemove` mutation
    */
-  async batchDelete(tableName: string, documentIds: ConvexId[]): Promise<number> {
+  async batchDelete(
+    tableName: string,
+    documentIds: ConvexId[]
+  ): Promise<number> {
     if (documentIds.length === 0) return 0;
 
     const response = await fetch(`${this.url}/api/mutation`, {
@@ -229,7 +239,7 @@ export class ConvexHttpClient implements IConvexClient {
       // If listAll doesn't exist, we can't truncate
       console.warn(
         `truncateTable for ${tableName}: listAll query not found. ` +
-        `Generate queries with --include-list-all flag.`
+          `Generate queries with --include-list-all flag.`
       );
       return 0;
     }
@@ -310,6 +320,11 @@ export class MigrationEngine {
   private aborted: boolean;
   private multiSchemaConfig: MultiSchemaConfig;
   private rollbackConfig: RollbackConfig;
+  // 110% ENHANCEMENTS
+  private hookExecutor: HookExecutor;
+  private slackNotifier: SlackNotifier | null;
+  private memoryMonitor: MemoryMonitor | null;
+  private dataMasker: DataMasker | null;
 
   constructor(config: Partial<ExtendedMigrationConfig>) {
     // Merge with defaults
@@ -365,7 +380,8 @@ export class MigrationEngine {
 
     this.idMapper = new IdMapper({
       persistPath: `${this.config.stateDir}/id-mappings.json`,
-      autoSaveThreshold: 500,
+      // CRITICAL FIX: Reduced from 500 to 10 for crash safety
+      autoSaveThreshold: 10,
     });
 
     this.transformer = createTransformer(this.idMapper);
@@ -390,6 +406,33 @@ export class MigrationEngine {
     } else {
       this.convexClient = new MockConvexClient();
     }
+
+    // 110% ENHANCEMENTS: Initialize new components
+    this.hookExecutor = new HookExecutor();
+
+    this.slackNotifier = this.config.slackNotifications
+      ? new SlackNotifier(this.config.slackNotifications)
+      : null;
+
+    this.memoryMonitor = this.config.memoryMonitoring
+      ? new MemoryMonitor({
+          ...this.config.memoryMonitoring,
+          onWarning: (snapshot, level) => {
+            const message = `Memory ${level}: ${(snapshot.heapUsed / 1024 / 1024).toFixed(2)}MB used`;
+            console.warn(message);
+            if (this.slackNotifier) {
+              this.slackNotifier.notify(
+                message,
+                level === 'critical' ? 'danger' : 'warning'
+              );
+            }
+          },
+        })
+      : null;
+
+    this.dataMasker = this.config.dataMasking?.enabled
+      ? new DataMasker(this.config.dataMasking)
+      : null;
   }
 
   /**
@@ -444,6 +487,9 @@ export class MigrationEngine {
         retryDelayMs: this.config.retryDelayMs,
         rateLimit: this.config.rateLimit,
         dryRun: this.config.dryRun,
+        // 110% ENHANCEMENTS
+        dataMasker: this.dataMasker,
+        autoStreamingThreshold: this.config.autoStreamingThreshold || 100000,
       }
     );
 
@@ -628,12 +674,42 @@ export class MigrationEngine {
     const tableResults: TableMigrationResult[] = [];
     const errors: MigrationError[] = [];
 
+    // 110% ENHANCEMENT: Start memory monitoring
+    if (this.memoryMonitor) {
+      this.memoryMonitor.start();
+    }
+
     try {
+      // 110% ENHANCEMENT: Execute pre-migration hooks
+      if (this.config.hooks?.preMigration) {
+        console.log('Executing pre-migration hooks...');
+        await this.hookExecutor.executeHooks(this.config.hooks.preMigration, {
+          MIGRATION_ID: 'starting',
+          START_TIME: startTime.toISOString(),
+        });
+      }
       // Check if resuming
       let state: MigrationState | null = null;
       if (this.config.resume) {
         state = await this.stateManager.load();
         if (state) {
+          // CRITICAL FIX: Load checkpoint to restore exact migration position
+          const checkpoint = await this.stateManager.loadCheckpoint(
+            state.migrationId
+          );
+          if (checkpoint) {
+            this.emitEvent({
+              type: 'migration:resume',
+              timestamp: new Date(),
+              migrationId: state.migrationId,
+              data: {
+                resumeFrom: checkpoint.tableName,
+                processedRows: checkpoint.processedCount,
+                checkpointTime: checkpoint.timestamp,
+              },
+            });
+          }
+
           // Load existing ID mappings
           await this.idMapper.load();
           // Load rollback state if available
@@ -690,6 +766,14 @@ export class MigrationEngine {
         data: { tables: migrationOrder.length },
       });
 
+      // 110% ENHANCEMENT: Send Slack notification
+      if (this.slackNotifier) {
+        await this.slackNotifier.notifyMigrationStart({
+          migrationId: state.migrationId,
+          totalTables: migrationOrder.length,
+        });
+      }
+
       // Check if parallel migration is enabled
       const parallelEnabled = this.extendedConfig.parallel?.enabled ?? false;
 
@@ -733,6 +817,41 @@ export class MigrationEngine {
         timestamp: new Date(),
         migrationId: state.migrationId,
       });
+
+      // 110% ENHANCEMENT: Send success notification
+      if (!this.aborted && this.slackNotifier) {
+        const successfulTables = tableResults.filter((t) => t.success).length;
+        const totalMigrated = tableResults.reduce(
+          (sum, t) => sum + t.migratedRows,
+          0
+        );
+        const totalFailed = tableResults.reduce(
+          (sum, t) => sum + t.failedRows,
+          0
+        );
+        const duration = Date.now() - startTime.getTime();
+
+        await this.slackNotifier.notifyMigrationComplete({
+          migrationId: state.migrationId,
+          duration,
+          migratedRows: totalMigrated,
+          failedRows: totalFailed,
+          tablesCompleted: successfulTables,
+        });
+      }
+
+      // 110% ENHANCEMENT: Execute post-migration success hooks
+      if (!this.aborted && this.config.hooks?.postMigrationSuccess) {
+        console.log('Executing post-migration success hooks...');
+        await this.hookExecutor.executeHooks(
+          this.config.hooks.postMigrationSuccess,
+          {
+            MIGRATION_ID: state.migrationId,
+            END_TIME: new Date().toISOString(),
+            SUCCESS: 'true',
+          }
+        );
+      }
     } catch (error: unknown) {
       errors.push({
         code: 'UNKNOWN_ERROR',
@@ -745,7 +864,46 @@ export class MigrationEngine {
       const currentState = this.stateManager.getCurrentState();
       if (currentState) {
         await this.stateManager.save(currentState);
+
+        // 110% ENHANCEMENT: Send failure notification
+        if (this.slackNotifier) {
+          const successfulTables = tableResults.filter((t) => t.success).length;
+          const failedTables = tableResults.filter((t) => !t.success).length;
+
+          await this.slackNotifier.notifyMigrationFailure({
+            migrationId: currentState.migrationId,
+            error: (error as Error).message,
+            tablesCompleted: successfulTables,
+            tablesFailed: failedTables,
+          });
+        }
+
+        // 110% ENHANCEMENT: Execute post-migration failure hooks
+        if (this.config.hooks?.postMigrationFailure) {
+          console.log('Executing post-migration failure hooks...');
+          await this.hookExecutor.executeHooks(
+            this.config.hooks.postMigrationFailure,
+            {
+              MIGRATION_ID: currentState.migrationId,
+              END_TIME: new Date().toISOString(),
+              SUCCESS: 'false',
+              ERROR: (error as Error).message,
+            }
+          );
+        }
       }
+    }
+
+    // 110% ENHANCEMENT: Stop memory monitoring
+    if (this.memoryMonitor) {
+      this.memoryMonitor.stop();
+
+      // Log memory stats
+      const stats = this.memoryMonitor.getStats();
+      console.log(
+        `Memory Stats - Peak: ${(stats.peak.heapUsed / 1024 / 1024).toFixed(2)}MB, ` +
+          `Avg: ${(stats.average.heapUsed / 1024 / 1024).toFixed(2)}MB`
+      );
     }
 
     // Generate report
@@ -818,6 +976,9 @@ export class MigrationEngine {
           retryDelayMs: this.config.retryDelayMs,
           rateLimit: this.config.rateLimit,
           dryRun: this.config.dryRun,
+          // 110% ENHANCEMENTS
+          dataMasker: this.dataMasker ?? undefined,
+          autoStreamingThreshold: this.config.autoStreamingThreshold || 100000,
         }
       );
 

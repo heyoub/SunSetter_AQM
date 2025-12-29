@@ -32,13 +32,17 @@ export interface TableSelectorResult {
 export class TableSelectorScreen {
   private screen: blessed.Widgets.Screen;
   private tables: TableInfo[];
+  private filteredTables: TableInfo[];
   private selected: Set<string> = new Set();
   private resolvePromise: ((result: TableSelectorResult) => void) | null = null;
   private listWidget: blessed.Widgets.ListElement | null = null;
   private statsWidget: blessed.Widgets.BoxElement | null = null;
+  private searchWidget: blessed.Widgets.TextboxElement | null = null;
+  private searchQuery: string = '';
 
   constructor(tables: TableInfo[]) {
     this.tables = tables;
+    this.filteredTables = tables;
     // Select all by default
     tables.forEach((t) => this.selected.add(t.name));
 
@@ -88,15 +92,57 @@ export class TableSelectorScreen {
       },
     });
 
+    // Search box (only show if 10+ tables)
+    const showSearch = this.tables.length >= 10;
+    const searchBoxHeight = showSearch ? 3 : 0;
+
+    if (showSearch) {
+      this.searchWidget = blessed.textbox({
+        parent: this.screen,
+        top: 3,
+        left: 0,
+        width: '70%',
+        height: 3,
+        border: { type: 'line' },
+        label: ' Search Tables (type to filter) ',
+        style: {
+          border: { fg: '#FF6B35' },
+          focus: {
+            border: { fg: '#FF3864' },
+          },
+        },
+        inputOnFocus: true,
+      });
+
+      // Handle search input
+      this.searchWidget.on('submit', (value: string) => {
+        this.searchQuery = value || '';
+        this.filterTables();
+        if (this.listWidget) {
+          this.listWidget.focus();
+        }
+      });
+
+      this.searchWidget.on('keypress', (_ch: string, key: { name: string }) => {
+        if (key.name === 'escape') {
+          this.searchQuery = '';
+          this.filterTables();
+          if (this.listWidget) {
+            this.listWidget.focus();
+          }
+        }
+      });
+    }
+
     // Main content area
     const contentBox = blessed.box({
       parent: this.screen,
-      top: 3,
+      top: 3 + searchBoxHeight,
       left: 0,
       width: '70%',
-      height: '80%',
+      height: `${80 - searchBoxHeight}%`,
       border: { type: 'line' },
-      label: ` Tables (${this.tables.length}) `,
+      label: ` Tables (${this.filteredTables.length}/${this.tables.length}) `,
       style: {
         border: { fg: '#9B59B6' },
       },
@@ -230,14 +276,14 @@ export class TableSelectorScreen {
     });
 
     // Keyboard hints
+    const searchHint = showSearch ? '  {bold}/{/bold} Search' : '';
     blessed.box({
       parent: this.screen,
       bottom: 0,
       left: 0,
       width: '100%',
       height: 1,
-      content:
-        '  {bold}Space{/bold} Toggle  {bold}Enter{/bold} Confirm  {bold}A{/bold} Select All  {bold}C{/bold} Clear  {bold}Q{/bold} Cancel',
+      content: `  {bold}Space{/bold} Toggle  {bold}Enter{/bold} Confirm  {bold}A{/bold} Select All  {bold}C{/bold} Clear${searchHint}  {bold}Q{/bold} Cancel`,
       tags: true,
       style: {
         bg: '#1a1a2e',
@@ -249,13 +295,19 @@ export class TableSelectorScreen {
     let selectedIndex = 0;
 
     // Setup event handlers
-    this.listWidget.on('select', (_item: any, index: number) => {
-      this.toggleTable(index);
-    });
+    this.listWidget.on(
+      'select',
+      (_item: blessed.Widgets.BlessedElement, index: number) => {
+        this.toggleTable(index);
+      }
+    );
 
-    this.listWidget.on('select item', (_item: any, index: number) => {
-      selectedIndex = index;
-    });
+    this.listWidget.on(
+      'select item',
+      (_item: blessed.Widgets.BlessedElement, index: number) => {
+        selectedIndex = index;
+      }
+    );
 
     this.listWidget.key(['space'], () => {
       this.toggleTable(selectedIndex);
@@ -269,16 +321,38 @@ export class TableSelectorScreen {
     this.screen.key(['a', 'A'], () => this.selectAll());
     this.screen.key(['c', 'C'], () => this.clearAll());
     this.screen.key(['escape', 'q', 'Q'], () => this.cancel());
+    this.screen.key(['/', 's', 'S'], () => {
+      // Focus search box if it exists
+      if (this.searchWidget) {
+        this.searchWidget.focus();
+        this.screen.render();
+      }
+    });
 
     this.listWidget.focus();
     this.screen.render();
   }
 
   /**
+   * Filter tables based on search query
+   */
+  private filterTables(): void {
+    if (!this.searchQuery) {
+      this.filteredTables = this.tables;
+    } else {
+      const query = this.searchQuery.toLowerCase();
+      this.filteredTables = this.tables.filter((t) =>
+        t.name.toLowerCase().includes(query)
+      );
+    }
+    this.updateUI();
+  }
+
+  /**
    * Get list items with selection state
    */
   private getListItems(): string[] {
-    return this.tables.map((t) => {
+    return this.filteredTables.map((t) => {
       const selected = this.selected.has(t.name);
       const checkbox = selected ? '{green-fg}[✓]{/}' : '{#666666-fg}[ ]{/}';
       const pk = t.hasPrimaryKey ? '{cyan-fg}PK{/}' : '  ';
@@ -329,7 +403,9 @@ export class TableSelectorScreen {
    * Toggle table selection
    */
   private toggleTable(index: number): void {
-    const table = this.tables[index];
+    const table = this.filteredTables[index];
+    if (!table) return;
+
     if (this.selected.has(table.name)) {
       this.selected.delete(table.name);
     } else {

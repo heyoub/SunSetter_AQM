@@ -167,14 +167,26 @@ export class InteractiveWizard {
       {
         type: 'input',
         name: 'connectionString',
-        message: 'Enter PostgreSQL connection string:',
+        message: 'Enter database connection string:',
         default: 'postgresql://user:password@localhost:5432/database',
         validate: (input: string) => {
-          if (
-            !input.startsWith('postgresql://') &&
-            !input.startsWith('postgres://')
-          ) {
-            return 'Connection string must start with postgresql:// or postgres://';
+          const validProtocols = [
+            'postgresql://',
+            'postgres://',
+            'mysql://',
+            'mariadb://',
+            'sqlite://',
+            'sqlite3://',
+            'mssql://',
+            'sqlserver://',
+          ];
+
+          const isValid = validProtocols.some((protocol) =>
+            input.startsWith(protocol)
+          );
+
+          if (!isValid) {
+            return `Connection string must start with one of: ${validProtocols.join(', ')}`;
           }
           return true;
         },

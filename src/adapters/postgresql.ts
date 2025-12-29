@@ -194,6 +194,13 @@ export class PostgreSQLAdapter extends BaseAdapter {
       // Test connection by acquiring and releasing a client
       const client = await this.pool.connect();
       await client.query('SELECT 1');
+
+      // Get and log PostgreSQL version
+      const versionInfo = await this.getPostgreSQLVersion();
+      console.log(
+        `[PostgreSQL] Connected to ${versionInfo.name} ${versionInfo.version} (${versionInfo.fullVersion})`
+      );
+
       client.release();
 
       this.connected = true;
@@ -207,6 +214,55 @@ export class PostgreSQLAdapter extends BaseAdapter {
         error as Error
       );
     }
+  }
+
+  /**
+   * Get PostgreSQL server version information
+   */
+  async getPostgreSQLVersion(): Promise<{
+    version: string;
+    fullVersion: string;
+    majorVersion: number;
+    minorVersion: number;
+    name: string;
+  }> {
+    const query = `
+      SELECT
+        version() as full_version,
+        current_setting('server_version') as version,
+        current_setting('server_version_num')::integer as version_num
+    `;
+
+    const result = await this.query<{
+      full_version: string;
+      version: string;
+      version_num: number;
+    }>(query);
+
+    const row = result[0];
+    const versionParts = row.version.split('.');
+    const majorVersion = parseInt(versionParts[0] || '0', 10);
+    const minorVersion = parseInt(versionParts[1] || '0', 10);
+
+    // Determine PostgreSQL distribution name
+    let name = 'PostgreSQL';
+    if (row.full_version.includes('Amazon Aurora')) {
+      name = 'Amazon Aurora PostgreSQL';
+    } else if (row.full_version.includes('Supabase')) {
+      name = 'Supabase PostgreSQL';
+    } else if (row.full_version.includes('Azure')) {
+      name = 'Azure Database for PostgreSQL';
+    } else if (row.full_version.includes('Google Cloud')) {
+      name = 'Google Cloud SQL PostgreSQL';
+    }
+
+    return {
+      version: row.version,
+      fullVersion: row.full_version,
+      majorVersion,
+      minorVersion,
+      name,
+    };
   }
 
   async disconnect(): Promise<void> {
@@ -312,6 +368,109 @@ export class PostgreSQLAdapter extends BaseAdapter {
 
     const result = await this.query<{ table_name: string }>(query, [schema]);
     return result.map((row) => row.table_name);
+  }
+
+  /**
+   * Detect PostgreSQL advanced table features (partitioned, materialized views, foreign tables)
+   */
+  async detectAdvancedTableFeatures(
+    schema: string,
+    table: string
+  ): Promise<{
+    isPartitioned: boolean;
+    isMaterializedView: boolean;
+    isForeignTable: boolean;
+    warnings: string[];
+  }> {
+    const warnings: string[] = [];
+
+    // Check for PARTITIONED TABLE
+    const partitionQuery = `
+      SELECT
+        pt.partrelid IS NOT NULL as is_partitioned,
+        pt.partstrat as partition_strategy,
+        pg_get_partkeydef(pt.partrelid) as partition_key
+      FROM pg_class c
+      LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+      LEFT JOIN pg_partitioned_table pt ON pt.partrelid = c.oid
+      WHERE n.nspname = $1 AND c.relname = $2;
+    `;
+
+    const partitionResult = await this.query<{
+      is_partitioned: boolean;
+      partition_strategy: string | null;
+      partition_key: string | null;
+    }>(partitionQuery, [schema, table]);
+
+    const isPartitioned = partitionResult[0]?.is_partitioned || false;
+    if (isPartitioned) {
+      const strategy = partitionResult[0]?.partition_strategy || 'UNKNOWN';
+      const key = partitionResult[0]?.partition_key || 'UNKNOWN';
+      warnings.push(
+        `WARNING: Table "${table}" is a PARTITIONED TABLE (strategy: ${strategy}, key: ${key}). ` +
+          `Convex does not support table partitioning. All partitions will be merged into a single Convex table. ` +
+          `Consider the implications for data distribution and query performance.`
+      );
+    }
+
+    // Check for MATERIALIZED VIEW
+    const matviewQuery = `
+      SELECT mv.matviewname IS NOT NULL as is_matview
+      FROM pg_class c
+      LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+      LEFT JOIN pg_matviews mv ON mv.schemaname = n.nspname AND mv.matviewname = c.relname
+      WHERE n.nspname = $1 AND c.relname = $2;
+    `;
+
+    const matviewResult = await this.query<{ is_matview: boolean }>(
+      matviewQuery,
+      [schema, table]
+    );
+
+    const isMaterializedView = matviewResult[0]?.is_matview || false;
+    if (isMaterializedView) {
+      warnings.push(
+        `WARNING: "${table}" is a MATERIALIZED VIEW. ` +
+          `Convex does not have materialized views. This will be migrated as read-only data. ` +
+          `You will need to implement refresh logic manually in your Convex mutations. ` +
+          `Consider whether this data should be computed on-demand or cached differently.`
+      );
+    }
+
+    // Check for FOREIGN TABLE (foreign data wrapper)
+    const foreignTableQuery = `
+      SELECT
+        ft.ftrelid IS NOT NULL as is_foreign,
+        fs.srvname as foreign_server
+      FROM pg_class c
+      LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+      LEFT JOIN pg_foreign_table ft ON ft.ftrelid = c.oid
+      LEFT JOIN pg_foreign_server fs ON fs.oid = ft.ftserver
+      WHERE n.nspname = $1 AND c.relname = $2;
+    `;
+
+    const foreignResult = await this.query<{
+      is_foreign: boolean;
+      foreign_server: string | null;
+    }>(foreignTableQuery, [schema, table]);
+
+    const isForeignTable = foreignResult[0]?.is_foreign || false;
+    if (isForeignTable) {
+      const server = foreignResult[0]?.foreign_server || 'UNKNOWN';
+      warnings.push(
+        `ERROR: "${table}" is a FOREIGN TABLE (server: ${server}). ` +
+          `Foreign tables reference external data sources and CANNOT be migrated to Convex. ` +
+          `This table will be SKIPPED. Consider migrating the source data directly or implementing ` +
+          `external API calls in your Convex functions to access this data.`
+      );
+    }
+
+    return {
+      isPartitioned,
+      isMaterializedView,
+      isForeignTable,
+      warnings,
+    };
   }
 
   async getColumns(schema: string, table: string): Promise<ColumnInfo[]> {
@@ -818,6 +977,42 @@ export class PostgreSQLAdapter extends BaseAdapter {
   getConnectionString(): string {
     const config = this.config as PostgreSQLConfig;
     return `postgresql://${config.user}:***@${config.host}:${config.port}/${config.database}`;
+  }
+
+  /**
+   * Get all enum types and their values from a schema
+   */
+  async getEnumTypes(schema: string): Promise<
+    Array<{
+      enumName: string;
+      enumValues: string[];
+      description: string | null;
+    }>
+  > {
+    const query = `
+      SELECT
+        t.typname as enum_name,
+        obj_description(t.oid, 'pg_type') as description,
+        ARRAY_AGG(e.enumlabel ORDER BY e.enumsortorder) as enum_values
+      FROM pg_type t
+      JOIN pg_enum e ON t.oid = e.enumtypid
+      JOIN pg_namespace n ON n.oid = t.typnamespace
+      WHERE n.nspname = $1
+      GROUP BY t.typname, t.oid, n.nspname
+      ORDER BY t.typname;
+    `;
+
+    const result = await this.query<{
+      enum_name: string;
+      description: string | null;
+      enum_values: string[];
+    }>(query, [schema]);
+
+    return result.map((row) => ({
+      enumName: row.enum_name,
+      enumValues: row.enum_values,
+      description: row.description,
+    }));
   }
 }
 

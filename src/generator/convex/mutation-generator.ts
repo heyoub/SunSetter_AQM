@@ -130,12 +130,32 @@ ${mutations.join('\n\n')}
 
     return `/**
  * Create a new ${pascalName}
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useMutation } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function Create${pascalName}Form() {
+ *   const create${pascalName} = useMutation(api.${tableName}.create);
+ *
+ *   const handleSubmit = async (formData) => {
+ *     const id = await create${pascalName}(formData);
+ *     console.log("Created with ID:", id);
+ *   };
+ *
+ *   return <form onSubmit={handleSubmit}>...</form>;
+ * }
+ * \`\`\`
+ *
+ * @returns The ID of the newly created ${pascalName} document
  */
 export const create = mutation({
   args: {
 ${argsDefinition},
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<Id<"${tableName}">> => {
     const id = await ctx.db.insert("${tableName}", {
 ${insertFields},
     });
@@ -172,13 +192,35 @@ ${insertFields},
 
     return `/**
  * Update an existing ${pascalName}
+ *
+ * All fields are optional. Only provided fields will be updated.
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useMutation } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function Edit${pascalName}({ id }: { id: Id<"${tableName}"> }) {
+ *   const update${pascalName} = useMutation(api.${tableName}.update);
+ *
+ *   const handleUpdate = async (updates) => {
+ *     await update${pascalName}({ id, ...updates });
+ *   };
+ *
+ *   return <button onClick={() => handleUpdate({ name: "New Name" })}>Update</button>;
+ * }
+ * \`\`\`
+ *
+ * @param args.id - The document ID to update
+ * @returns The ID of the updated ${pascalName} document
  */
 export const update = mutation({
   args: {
     id: v.id("${tableName}"),
 ${argsDefinition},
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<Id<"${tableName}">> => {
     const { id, ...updates } = args;
 
     // Remove undefined values
@@ -207,12 +249,33 @@ ${argsDefinition},
 
     return `/**
  * Delete a ${pascalName}
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useMutation } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function Delete${pascalName}Button({ id }: { id: Id<"${tableName}"> }) {
+ *   const remove${pascalName} = useMutation(api.${tableName}.remove);
+ *
+ *   const handleDelete = async () => {
+ *     await remove${pascalName}({ id });
+ *     console.log("Deleted successfully");
+ *   };
+ *
+ *   return <button onClick={handleDelete}>Delete</button>;
+ * }
+ * \`\`\`
+ *
+ * @param args.id - The document ID to delete
+ * @returns The ID of the deleted ${pascalName} document
  */
 export const remove = mutation({
   args: {
     id: v.id("${tableName}"),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<Id<"${tableName}">> => {
     await ${deleteCall};
     return args.id;
   },
@@ -238,6 +301,30 @@ export const remove = mutation({
 
     return `/**
  * Create multiple ${pascalName} documents in batch
+ *
+ * Automatically chunks large batches to prevent timeout issues.
+ * For batches >1000 items, consider using scheduler for background processing.
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useMutation } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function Bulk${pascalName}Import({ data }: { data: Array<any> }) {
+ *   const batchCreate = useMutation(api.${tableName}.batchCreate);
+ *
+ *   const handleImport = async () => {
+ *     const ids = await batchCreate({ items: data });
+ *     console.log(\`Created \${ids.length} ${pascalName}s\`);
+ *   };
+ *
+ *   return <button onClick={handleImport}>Import {data.length} items</button>;
+ * }
+ * \`\`\`
+ *
+ * @param args.items - Array of ${pascalName} objects to create
+ * @returns Array of IDs for the created documents
  */
 export const batchCreate = mutation({
   args: {
@@ -245,12 +332,23 @@ export const batchCreate = mutation({
 ${itemValidator},
     })),
   },
-  handler: async (ctx, args) => {
-    const ids = [];
+  handler: async (ctx, args): Promise<Array<Id<"${tableName}">>> => {
+    const ids: Array<Id<"${tableName}">> = [];
+    const CHUNK_SIZE = 100; // Process in chunks to avoid timeout
 
-    for (const item of args.items) {
-      const id = await ctx.db.insert("${tableName}", item);
-      ids.push(id);
+    // Process in chunks for large batches (>1000 items)
+    for (let i = 0; i < args.items.length; i += CHUNK_SIZE) {
+      const chunk = args.items.slice(i, i + CHUNK_SIZE);
+
+      for (const item of chunk) {
+        const id = await ctx.db.insert("${tableName}", item);
+        ids.push(id);
+      }
+
+      // Log progress for large batches
+      if (args.items.length > 1000 && (i + CHUNK_SIZE) % 1000 === 0) {
+        console.log(\`Processed \${i + CHUNK_SIZE} / \${args.items.length} items\`);
+      }
     }
 
     return ids;
@@ -269,15 +367,52 @@ ${itemValidator},
 
     return `/**
  * Delete multiple ${pascalName} documents in batch
+ *
+ * Automatically chunks large batches to prevent timeout issues.
+ * For batches >1000 items, consider using scheduler for background processing.
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useMutation } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function BulkDelete${pascalName}({ ids }: { ids: Array<Id<"${tableName}">> }) {
+ *   const batchRemove = useMutation(api.${tableName}.batchRemove);
+ *
+ *   const handleDelete = async () => {
+ *     await batchRemove({ ids });
+ *     console.log(\`Deleted \${ids.length} ${pascalName}s\`);
+ *   };
+ *
+ *   return <button onClick={handleDelete}>Delete {ids.length} items</button>;
+ * }
+ * \`\`\`
+ *
+ * @param args.ids - Array of document IDs to delete
+ * @returns Array of deleted document IDs
  */
 export const batchRemove = mutation({
   args: {
     ids: v.array(v.id("${tableName}")),
   },
-  handler: async (ctx, args) => {
-    for (const id of args.ids) {
-      await ${deleteCall};
+  handler: async (ctx, args): Promise<Array<Id<"${tableName}">>> => {
+    const CHUNK_SIZE = 100; // Process in chunks to avoid timeout
+
+    // Process in chunks for large batches (>1000 items)
+    for (let i = 0; i < args.ids.length; i += CHUNK_SIZE) {
+      const chunk = args.ids.slice(i, i + CHUNK_SIZE);
+
+      for (const id of chunk) {
+        await ${deleteCall};
+      }
+
+      // Log progress for large batches
+      if (args.ids.length > 1000 && (i + CHUNK_SIZE) % 1000 === 0) {
+        console.log(\`Deleted \${i + CHUNK_SIZE} / \${args.ids.length} items\`);
+      }
     }
+
     return args.ids;
   },
 });`;
@@ -311,12 +446,36 @@ export const batchRemove = mutation({
 
     return `/**
  * Create or update a ${pascalName} based on ${fieldName}
+ *
+ * If a document with the given ${fieldName} exists, it will be updated.
+ * Otherwise, a new document will be created.
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useMutation } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function Upsert${pascalName}({ ${fieldName}, data }: { ${fieldName}: string, data: any }) {
+ *   const upsert${pascalName} = useMutation(api.${tableName}.upsert);
+ *
+ *   const handleUpsert = async () => {
+ *     const id = await upsert${pascalName}({ ${fieldName}, ...data });
+ *     console.log("Upserted with ID:", id);
+ *   };
+ *
+ *   return <button onClick={handleUpsert}>Save</button>;
+ * }
+ * \`\`\`
+ *
+ * @param args.${fieldName} - The unique ${fieldName} to check for existing document
+ * @returns The ID of the created or updated ${pascalName} document
  */
 export const upsert = mutation({
   args: {
 ${argsDefinition},
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<Id<"${tableName}">> => {
     const existing = await ctx.db
       .query("${tableName}")
       .withIndex("${indexName}", (q) => q.eq("${fieldName}", args.${fieldName}))

@@ -90,6 +90,9 @@ export type MigrationErrorCode =
   | 'CONFIGURATION_ERROR'
   | 'GENERATION_ERROR'
   | 'INTROSPECTION_ERROR'
+  // Rollback errors/warnings
+  | 'ROLLBACK_ERROR'
+  | 'ROLLBACK_WARNING'
   // Catch-all
   | 'UNKNOWN_ERROR';
 
@@ -272,6 +275,22 @@ export interface IIdMapper {
 
   /** Clear all mappings */
   clear(): void;
+
+  /** Check if streaming mode is enabled (110% enhancement) */
+  isStreamingMode?(): boolean;
+
+  /** Enable streaming mode for large migrations (110% enhancement) */
+  enableStreamingMode?(options?: {
+    chunkDir?: string;
+    memoryThreshold?: number;
+    chunkSize?: number;
+  }): void;
+
+  /** Save mappings to file */
+  save?(filePath?: string): Promise<void>;
+
+  /** Load mappings from file */
+  load?(filePath?: string): Promise<void>;
 }
 
 /**

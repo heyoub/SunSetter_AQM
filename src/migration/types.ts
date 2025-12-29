@@ -132,6 +132,29 @@ export interface MigrationConfig {
   logLevel: 'quiet' | 'normal' | 'verbose';
   /** Parallel migration config (partial - missing fields use defaults) */
   parallel?: Partial<ParallelMigrationConfig>;
+  /** 110% ENHANCEMENTS */
+  /** Pre/post migration hooks */
+  hooks?: import('./hooks.js').MigrationHooks;
+  /** Slack notification configuration */
+  slackNotifications?: import('./notifications.js').SlackNotificationConfig;
+  /** Memory monitoring configuration */
+  memoryMonitoring?: Partial<import('./memory-monitor.js').MemoryMonitorConfig>;
+  /** Auto-enable streaming mode for large tables (default: 100000 rows) */
+  autoStreamingThreshold?: number;
+  /** Data masking configuration */
+  dataMasking?: import('./data-masking.js').DataMaskingConfig;
+  /** Timestamp-based incremental sync */
+  incrementalSync?: {
+    enabled: boolean;
+    timestampColumn: string;
+    lastSyncTime?: Date;
+  };
+  /** Circuit breaker configuration */
+  circuitBreaker?: {
+    enabled: boolean;
+    failureThreshold: number;
+    resetTimeoutMs: number;
+  };
 }
 
 /**
@@ -308,6 +331,20 @@ export interface ParallelMigrationConfig {
   maxParallelTables: number;
   /** Whether to auto-detect optimal parallelism */
   autoOptimize: boolean;
+  /** Data masker instance (110% enhancement) */
+  dataMasker?: import('./data-masking.js').DataMasker;
+  /** Auto-streaming threshold for large tables */
+  autoStreamingThreshold?: number;
+  /** Batch size for migrations */
+  batchSize?: number;
+  /** Maximum retries per batch */
+  maxRetries?: number;
+  /** Retry delay in ms */
+  retryDelayMs?: number;
+  /** Rate limit (requests per second) */
+  rateLimit?: number;
+  /** Dry run mode */
+  dryRun?: boolean;
 }
 
 /**

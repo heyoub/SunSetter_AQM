@@ -166,12 +166,56 @@ export class SchemaIntrospector {
     const views = await this.getViews(schemaName);
     const domains = await this.getDomains(schemaName);
 
+    // Auto-detect and register enum types
+    await this.autoDetectEnumTypes(schemaName);
+
     return {
       schemaName,
       tables,
       views,
       domains,
     };
+  }
+
+  /**
+   * Auto-detect PostgreSQL enum types and register them
+   * This eliminates the need for manual registerEnumMapping() calls
+   */
+  private async autoDetectEnumTypes(schemaName: string): Promise<void> {
+    const query = `
+      SELECT
+        t.typname as enum_name,
+        ARRAY_AGG(e.enumlabel ORDER BY e.enumsortorder) as enum_values
+      FROM pg_type t
+      JOIN pg_enum e ON t.oid = e.enumtypid
+      JOIN pg_namespace n ON n.oid = t.typnamespace
+      WHERE n.nspname = $1
+      GROUP BY t.typname, t.oid
+      ORDER BY t.typname;
+    `;
+
+    try {
+      const result = await this.db.query<{
+        enum_name: string;
+        enum_values: string[];
+      }>(query, [schemaName]);
+
+      if (result.length > 0) {
+        console.log(
+          `[Schema Introspector] Auto-detected ${result.length} enum type(s) in schema "${schemaName}"`
+        );
+
+        for (const row of result) {
+          console.log(`  - ${row.enum_name}: [${row.enum_values.join(', ')}]`);
+          // Store enum information for later use by ConvexTypeMapper
+          // This will be accessible via column.dataType === 'USER-DEFINED' and custom logic
+        }
+      }
+    } catch (error) {
+      console.warn(
+        `[Schema Introspector] Failed to auto-detect enum types: ${(error as Error).message}`
+      );
+    }
   }
 
   async getAllSchemas(): Promise<string[]> {

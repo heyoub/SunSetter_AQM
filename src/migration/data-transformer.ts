@@ -30,6 +30,8 @@ export interface TransformerConfig {
   emptyStringsAsNull: boolean;
   /** How to handle unknown types */
   unknownTypeHandling: 'string' | 'skip' | 'error';
+  /** Enable deferred FK mode for circular dependencies (default: false) */
+  deferredForeignKeys: boolean;
 }
 
 /**
@@ -40,6 +42,7 @@ const DEFAULT_CONFIG: TransformerConfig = {
   stripNulls: false,
   emptyStringsAsNull: false,
   unknownTypeHandling: 'string',
+  deferredForeignKeys: false,
 };
 
 /**
@@ -189,6 +192,7 @@ export class DataTransformer {
 
   /**
    * Transform foreign key value to Convex ID
+   * CRITICAL FIX: Added deferred FK mode for circular dependencies
    */
   private transformForeignKey(value: unknown, column: ColumnInfo): unknown {
     if (!column.foreignKeyTable) return null;
@@ -200,13 +204,24 @@ export class DataTransformer {
     );
 
     if (convexId === undefined) {
-      // Foreign key not found - could be not migrated yet
+      // Foreign key not found - could be not migrated yet or circular dependency
+
+      // CRITICAL FIX: If deferred FK mode is enabled, set to null temporarily
+      // This allows circular dependencies to be resolved in a second pass
+      if (this.config.deferredForeignKeys) {
+        console.warn(
+          `Deferred FK: ${column.columnName} -> ${column.foreignKeyTable}[${value}] (will be resolved in second pass)`
+        );
+        return null;
+      }
+
       // Return null for nullable columns, throw for required
       if (column.isNullable) {
         return null;
       }
       throw new Error(
-        `Foreign key reference not found: ${column.foreignKeyTable}[${value}]`
+        `Foreign key reference not found: ${column.foreignKeyTable}[${value}]. ` +
+          `Enable deferredForeignKeys mode to handle circular dependencies.`
       );
     }
 

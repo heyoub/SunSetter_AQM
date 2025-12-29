@@ -67,6 +67,10 @@ export interface TableMigratorConfig {
   adaptiveBatching: boolean;
   /** Memory threshold for GC hint (bytes) */
   memoryThreshold: number;
+  /** Maximum batch size in bytes (default: 1MB) */
+  maxBatchSizeBytes: number;
+  /** Enable batch size validation by bytes */
+  validateBatchSizeByBytes: boolean;
 }
 
 /**
@@ -84,6 +88,8 @@ const DEFAULT_CONFIG: TableMigratorConfig = {
   maxBatchSize: 500,
   adaptiveBatching: true,
   memoryThreshold: 100 * 1024 * 1024, // 100MB
+  maxBatchSizeBytes: 1 * 1024 * 1024, // 1MB
+  validateBatchSizeByBytes: true,
 };
 
 // ============================================================================
@@ -123,6 +129,9 @@ export class TableMigrator {
   private tokenBucket: TokenBucket;
   private eventHandlers: MigrationEventHandler[] = [];
   private aborted: boolean = false;
+  // 110% ENHANCEMENTS
+  private dataMasker: import('./data-masking.js').DataMasker | null = null;
+  private autoStreamingThreshold: number;
 
   // Adaptive batching state
   private currentBatchSize: number;
@@ -141,7 +150,10 @@ export class TableMigrator {
     idMapper: IIdMapper,
     transformer: DataTransformer,
     stateManager: MigrationStateManager,
-    config: Partial<TableMigratorConfig> = {}
+    config: Partial<TableMigratorConfig> & {
+      dataMasker?: import('./data-masking.js').DataMasker | null;
+      autoStreamingThreshold?: number;
+    } = {}
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.adapter = adapter;
@@ -150,6 +162,9 @@ export class TableMigrator {
     this.transformer = transformer;
     this.stateManager = stateManager;
     this.currentBatchSize = this.config.batchSize;
+    // 110% ENHANCEMENTS
+    this.dataMasker = config.dataMasker || null;
+    this.autoStreamingThreshold = config.autoStreamingThreshold || 100000;
 
     // Initialize token bucket for rate limiting
     this.tokenBucket = {
@@ -238,6 +253,16 @@ export class TableMigrator {
         schema,
         table.tableName
       );
+
+      // 110% ENHANCEMENT: Auto-enable streaming mode for large tables
+      if (result.totalRows >= this.autoStreamingThreshold) {
+        console.log(
+          `Auto-enabling streaming mode for ${table.tableName} (${result.totalRows.toLocaleString()} rows)`
+        );
+        if (this.idMapper.isStreamingMode && !this.idMapper.isStreamingMode()) {
+          this.idMapper.enableStreamingMode?.();
+        }
+      }
 
       // Emit table start event
       this.emit({
@@ -351,12 +376,80 @@ export class TableMigrator {
       result.skippedRows += skipped;
       result.errors.push(...transformErrors);
 
-      // Insert batch with retry
-      if (!this.config.dryRun && documents.length > 0) {
+      // 110% ENHANCEMENT: Apply data masking if configured
+      let maskedDocuments = documents;
+      if (
+        this.dataMasker &&
+        this.dataMasker.hasMaskingForTable(table.tableName)
+      ) {
+        maskedDocuments = this.dataMasker.maskDocuments(
+          table.tableName,
+          documents as Array<Record<string, unknown>>
+        ) as ConvexDocument[];
+      }
+
+      // CRITICAL FIX: Validate batch size by bytes if enabled
+      if (this.config.validateBatchSizeByBytes && maskedDocuments.length > 0) {
+        const batchSizeBytes = this.calculateBatchSizeBytes(maskedDocuments);
+        if (batchSizeBytes > this.config.maxBatchSizeBytes) {
+          // Split batch into smaller chunks
+          const chunkedDocuments = this.splitBatchBySize(
+            maskedDocuments,
+            rows,
+            this.config.maxBatchSizeBytes
+          );
+
+          this.emit({
+            type: 'warning',
+            table: table.tableName,
+            data: {
+              message: `Batch size (${(batchSizeBytes / 1024 / 1024).toFixed(2)}MB) exceeds limit (${(this.config.maxBatchSizeBytes / 1024 / 1024).toFixed(2)}MB). Split into ${chunkedDocuments.length} chunks.`,
+            },
+          });
+
+          // Process each chunk separately
+          for (
+            let chunkIdx = 0;
+            chunkIdx < chunkedDocuments.length;
+            chunkIdx++
+          ) {
+            const chunk = chunkedDocuments[chunkIdx];
+            if (this.config.dryRun) {
+              result.migratedRows += chunk.documents.length;
+            } else {
+              const batchResult = await this.insertBatchWithRetry(
+                table,
+                chunk.rows,
+                chunk.documents,
+                options,
+                batchNumber + chunkIdx
+              );
+
+              result.migratedRows += batchResult.insertedCount;
+              result.failedRows += batchResult.failedCount;
+              result.errors.push(...batchResult.errors);
+              this.retriedBatches += batchResult.retries > 0 ? 1 : 0;
+
+              this.storeIdMappings(
+                table.tableName,
+                chunk.rows,
+                batchResult.insertedIdsByIndex,
+                table,
+                options
+              );
+            }
+          }
+          // Skip normal processing for this batch
+          continue;
+        }
+      }
+
+      // Insert batch with retry (use masked documents)
+      if (!this.config.dryRun && maskedDocuments.length > 0) {
         const batchResult = await this.insertBatchWithRetry(
           table,
           rows,
-          documents,
+          maskedDocuments,
           options,
           batchNumber
         );
@@ -375,7 +468,7 @@ export class TableMigrator {
           options
         );
       } else if (this.config.dryRun) {
-        result.migratedRows += documents.length;
+        result.migratedRows += maskedDocuments.length;
       }
 
       // Update cursor position for state tracking
@@ -869,6 +962,58 @@ export class TableMigrator {
       totalBatches: this.totalBatches,
       retriedBatches: this.retriedBatches,
     };
+  }
+
+  // ==================== BATCH SIZE VALIDATION ====================
+
+  /**
+   * Calculate batch size in bytes (approximate)
+   */
+  private calculateBatchSizeBytes(documents: ConvexDocument[]): number {
+    let totalBytes = 0;
+    for (const doc of documents) {
+      // Approximate size using JSON serialization
+      totalBytes += JSON.stringify(doc).length;
+    }
+    return totalBytes;
+  }
+
+  /**
+   * Split batch into smaller chunks based on byte size
+   */
+  private splitBatchBySize(
+    documents: ConvexDocument[],
+    rows: PostgresRow[],
+    maxBytes: number
+  ): Array<{ documents: ConvexDocument[]; rows: PostgresRow[] }> {
+    const chunks: Array<{ documents: ConvexDocument[]; rows: PostgresRow[] }> =
+      [];
+    let currentDocs: ConvexDocument[] = [];
+    let currentRows: PostgresRow[] = [];
+    let currentSize = 0;
+
+    for (let i = 0; i < documents.length; i++) {
+      const docSize = JSON.stringify(documents[i]).length;
+
+      if (currentSize + docSize > maxBytes && currentDocs.length > 0) {
+        // Start new chunk
+        chunks.push({ documents: currentDocs, rows: currentRows });
+        currentDocs = [];
+        currentRows = [];
+        currentSize = 0;
+      }
+
+      currentDocs.push(documents[i]);
+      currentRows.push(rows[i]);
+      currentSize += docSize;
+    }
+
+    // Add remaining
+    if (currentDocs.length > 0) {
+      chunks.push({ documents: currentDocs, rows: currentRows });
+    }
+
+    return chunks;
   }
 
   // ==================== UTILITIES ====================

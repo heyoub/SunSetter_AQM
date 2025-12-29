@@ -55,14 +55,14 @@ export interface DashboardConfig {
 
 export class Dashboard {
   private screen: blessed.Widgets.Screen;
-  private grid: any;
+  private grid: contrib.grid;
   private widgets: {
     logo: blessed.Widgets.BoxElement;
-    stats: any;
-    progress: any;
-    tableList: any;
-    throughputChart: any;
-    log: any;
+    stats: contrib.widget.Table;
+    progress: contrib.widget.Gauge;
+    tableList: contrib.widget.Table;
+    throughputChart: contrib.widget.Line;
+    log: contrib.widget.Log;
     statusBar: blessed.Widgets.BoxElement;
   };
   private spinnerIndex = 0;

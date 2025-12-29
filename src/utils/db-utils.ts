@@ -1,3 +1,8 @@
+/**
+ * Valid SQL value types that can be safely used in queries
+ */
+export type SqlValue = string | number | boolean | Date | null | undefined;
+
 export function sanitizeTableName(tableName: string): string {
   return tableName.replace(/[^a-zA-Z0-9_]/g, '_');
 }
@@ -69,7 +74,7 @@ export function escapeIdentifier(name: string): string {
   return `"${name.replace(/"/g, '""')}"`;
 }
 
-export function formatSqlValue(value: any): string {
+export function formatSqlValue(value: SqlValue): string {
   if (value === null || value === undefined) {
     return 'NULL';
   }
@@ -85,9 +90,9 @@ export function formatSqlValue(value: any): string {
   return String(value);
 }
 
-export function buildWhereClause(criteria: Record<string, any>): {
+export function buildWhereClause(criteria: Record<string, SqlValue>): {
   clause: string;
-  values: any[];
+  values: SqlValue[];
 } {
   const entries = Object.entries(criteria).filter(
     ([_, value]) => value !== undefined
@@ -108,8 +113,8 @@ export function buildWhereClause(criteria: Record<string, any>): {
 
 export function buildInsertQuery(
   tableName: string,
-  data: Record<string, any>
-): { query: string; values: any[] } {
+  data: Record<string, SqlValue>
+): { query: string; values: SqlValue[] } {
   const columns = Object.keys(data);
   const placeholders = columns.map((_, index) => `$${index + 1}`);
   const values = Object.values(data);
@@ -125,10 +130,10 @@ export function buildInsertQuery(
 
 export function buildUpdateQuery(
   tableName: string,
-  data: Record<string, any>,
+  data: Record<string, SqlValue>,
   whereClause: string,
-  whereValues: any[]
-): { query: string; values: any[] } {
+  whereValues: SqlValue[]
+): { query: string; values: SqlValue[] } {
   const entries = Object.entries(data).filter(
     ([_, value]) => value !== undefined
   );

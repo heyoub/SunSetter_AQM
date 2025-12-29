@@ -125,34 +125,34 @@ ${actions.join('\n\n')}
     for (const table of tables) {
       const tableName = table.tableName;
       routes.push(`  // ${this.toPascalCase(tableName)} routes`);
-      routes.push(`  route({`);
+      routes.push(`  http.route({`);
       routes.push(`    path: "${this.options.basePath}/${tableName}",`);
       routes.push(`    method: "GET",`);
       routes.push(`    handler: ${tableName}HttpActions.list,`);
       routes.push(`  }),`);
-      routes.push(`  route({`);
+      routes.push(`  http.route({`);
       routes.push(`    path: "${this.options.basePath}/${tableName}/:id",`);
       routes.push(`    method: "GET",`);
       routes.push(`    handler: ${tableName}HttpActions.getById,`);
       routes.push(`  }),`);
-      routes.push(`  route({`);
+      routes.push(`  http.route({`);
       routes.push(`    path: "${this.options.basePath}/${tableName}",`);
       routes.push(`    method: "POST",`);
       routes.push(`    handler: ${tableName}HttpActions.create,`);
       routes.push(`  }),`);
-      routes.push(`  route({`);
+      routes.push(`  http.route({`);
       routes.push(`    path: "${this.options.basePath}/${tableName}/:id",`);
       routes.push(`    method: "PATCH",`);
       routes.push(`    handler: ${tableName}HttpActions.update,`);
       routes.push(`  }),`);
-      routes.push(`  route({`);
+      routes.push(`  http.route({`);
       routes.push(`    path: "${this.options.basePath}/${tableName}/:id",`);
       routes.push(`    method: "DELETE",`);
       routes.push(`    handler: ${tableName}HttpActions.remove,`);
       routes.push(`  }),`);
 
       if (this.options.generateWebhook) {
-        routes.push(`  route({`);
+        routes.push(`  http.route({`);
         routes.push(
           `    path: "${this.options.basePath}/${tableName}/webhook",`
         );
@@ -197,6 +197,78 @@ const corsHeaders = {
  *
  * For production, replace this stub with actual verification logic.
  * See: https://docs.convex.dev/auth
+ *
+ * @example Clerk Authentication
+ * \`\`\`typescript
+ * import { verifyToken } from "@clerk/backend";
+ *
+ * async function verifyAuth(request: Request) {
+ *   const authHeader = request.headers.get("Authorization");
+ *   if (!authHeader?.startsWith("Bearer ")) {
+ *     return { authenticated: false, error: "Missing token" };
+ *   }
+ *
+ *   const token = authHeader.slice(7);
+ *   try {
+ *     const verified = await verifyToken(token, {
+ *       secretKey: process.env.CLERK_SECRET_KEY!,
+ *     });
+ *     return { authenticated: true, userId: verified.sub };
+ *   } catch (error) {
+ *     return { authenticated: false, error: "Invalid token" };
+ *   }
+ * }
+ * \`\`\`
+ *
+ * @example Auth0 Authentication
+ * \`\`\`typescript
+ * import { jwtVerify, createRemoteJWKSet } from "jose";
+ *
+ * const JWKS = createRemoteJWKSet(
+ *   new URL(\`https://\${process.env.AUTH0_DOMAIN}/.well-known/jwks.json\`)
+ * );
+ *
+ * async function verifyAuth(request: Request) {
+ *   const authHeader = request.headers.get("Authorization");
+ *   if (!authHeader?.startsWith("Bearer ")) {
+ *     return { authenticated: false, error: "Missing token" };
+ *   }
+ *
+ *   const token = authHeader.slice(7);
+ *   try {
+ *     const { payload } = await jwtVerify(token, JWKS, {
+ *       issuer: \`https://\${process.env.AUTH0_DOMAIN}/\`,
+ *       audience: process.env.AUTH0_AUDIENCE,
+ *     });
+ *     return { authenticated: true, userId: payload.sub };
+ *   } catch (error) {
+ *     return { authenticated: false, error: "Invalid token" };
+ *   }
+ * }
+ * \`\`\`
+ *
+ * @example API Key Authentication
+ * \`\`\`typescript
+ * import { api } from "./_generated/api";
+ *
+ * async function verifyAuth(request: Request) {
+ *   const authHeader = request.headers.get("Authorization");
+ *   if (!authHeader?.startsWith("ApiKey ")) {
+ *     return { authenticated: false, error: "Missing API key" };
+ *   }
+ *
+ *   const apiKey = authHeader.slice(7);
+ *   // Hash the provided key and compare with stored hash
+ *   const hashedKey = await hashApiKey(apiKey);
+ *   const validKey = await ctx.runQuery(api.apiKeys.verifyKey, { hashedKey });
+ *
+ *   if (!validKey) {
+ *     return { authenticated: false, error: "Invalid API key" };
+ *   }
+ *
+ *   return { authenticated: true, userId: validKey.userId };
+ * }
+ * \`\`\`
  */
 async function verifyAuth(request: Request): Promise<{ authenticated: boolean; userId?: string; error?: string }> {
   const authHeader = request.headers.get("Authorization");
@@ -205,13 +277,12 @@ async function verifyAuth(request: Request): Promise<{ authenticated: boolean; u
     return { authenticated: false, error: "Missing Authorization header" };
   }
 
-  // Bearer token (JWT) authentication
+  // Bearer token (JWT) authentication - Clerk/Auth0/Custom
   if (authHeader.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
 
     // SECURITY: You MUST implement actual token verification here.
-    // Example with Clerk: use @clerk/backend to verify the JWT
-    // Example with Auth0: use jose or auth0 SDK to verify
+    // See examples above for Clerk and Auth0 implementation.
     //
     // For now, reject all tokens until verification is implemented:
     console.warn("[AUTH] Bearer token verification not implemented - rejecting request");
@@ -228,6 +299,7 @@ async function verifyAuth(request: Request): Promise<{ authenticated: boolean; u
     // SECURITY: Verify API key against hashed keys stored in Convex.
     // Use a timing-safe comparison to prevent timing attacks.
     // Store only hashed API keys, never plaintext.
+    // See example above for implementation.
     //
     // For now, reject all API keys until verification is implemented:
     console.warn("[AUTH] API key verification not implemented - rejecting request");

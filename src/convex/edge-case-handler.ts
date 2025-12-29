@@ -195,6 +195,19 @@ export class EdgeCaseHandler {
       });
     }
 
+    // Check for expression-based indexes
+    for (const index of table.indexes) {
+      if (index.isExpression) {
+        this.addWarning({
+          type: 'warning',
+          table: table.tableName,
+          message: `Expression-based index detected: ${index.indexName}`,
+          suggestion:
+            'Convex does not support expression indexes. Consider indexing the base column(s) or implementing the expression logic in your queries.',
+        });
+      }
+    }
+
     // Check field name lengths
     for (const column of table.columns) {
       const camelCaseName = column.columnName.replace(

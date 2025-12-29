@@ -43,6 +43,11 @@ import {
   createConnectionError,
 } from '../errors/index.js';
 import type { MigrationConfig, MigrationEvent } from '../../migration/types.js';
+import { EXIT_CODES } from '../exit-codes.js';
+import {
+  suggestTableNames,
+  formatSuggestionMessage,
+} from '../../utils/fuzzy-match.js';
 
 // ============================================================================
 // Types
@@ -158,7 +163,7 @@ function setupSignalHandlers(): void {
     }
 
     activeReporter?.close();
-    process.exit(0);
+    process.exit(EXIT_CODES.USER_CANCELLED);
   };
 
   process.on('SIGINT', () => handleSignal('SIGINT'));
@@ -178,6 +183,11 @@ function setupSignalHandlers(): void {
   process.on('unhandledRejection', (reason) => {
     const message = reason instanceof Error ? reason.message : String(reason);
     activeReporter?.error(`Unhandled rejection: ${message}`);
+    if (activeEngine) {
+      activeEngine.abort();
+    }
+    activeReporter?.close();
+    process.exit(1);
   });
 }
 
@@ -675,7 +685,13 @@ async function runMigrateCommand(options: MigrateOptions): Promise<void> {
     } else {
       reporter.error('Unexpected error', error as Error);
     }
-    process.exit(1);
+    const exitCode =
+      error instanceof ConfigurationError
+        ? EXIT_CODES.CONFIG_ERROR
+        : error instanceof MigrationError
+          ? EXIT_CODES.MIGRATION_ERROR
+          : EXIT_CODES.ERROR;
+    process.exit(exitCode);
   } finally {
     reporter.close();
   }
@@ -849,12 +865,42 @@ async function runSchemaOnlyMigration(
     const schema = await introspector.introspectSchema('public');
     let tables = schema.tables;
 
-    // Apply filters
+    // Apply filters with fuzzy matching for invalid table names
     if (config.includeTables && config.includeTables.length > 0) {
-      const includeSet = new Set(config.includeTables);
-      tables = tables.filter((t: TableInfo) => includeSet.has(t.tableName));
+      const availableTableNames = tables.map((t) => t.tableName);
+      const validTables: TableInfo[] = [];
+      const invalidTables: string[] = [];
+
+      for (const requestedTable of config.includeTables) {
+        const found = tables.find((t) => t.tableName === requestedTable);
+        if (found) {
+          validTables.push(found);
+        } else {
+          invalidTables.push(requestedTable);
+        }
+      }
+
+      // Show suggestions for invalid table names
+      if (invalidTables.length > 0) {
+        reporter.warn('Some requested tables were not found:');
+        for (const invalidTable of invalidTables) {
+          const result = suggestTableNames(
+            invalidTable,
+            availableTableNames,
+            3
+          );
+          const message = formatSuggestionMessage(
+            invalidTable,
+            result.suggestions
+          );
+          reporter.warn(message);
+        }
+      }
+
+      tables = validTables;
       reporter.debug(`Filtered to ${tables.length} tables (include list)`);
     }
+
     if (config.excludeTables && config.excludeTables.length > 0) {
       const excludeSet = new Set(config.excludeTables);
       tables = tables.filter((t: TableInfo) => !excludeSet.has(t.tableName));
@@ -990,7 +1036,7 @@ async function runFullMigration(
       for (const error of validation.errors) {
         reporter.error(`${error.table}: ${error.message}`);
       }
-      process.exit(1);
+      process.exit(EXIT_CODES.VALIDATION_ERROR);
     }
 
     if (validation.warnings.length > 0) {
@@ -1063,7 +1109,7 @@ async function runFullMigration(
       );
     } else {
       reporter.box('Migration failed. Check errors above.', 'error');
-      process.exit(1);
+      process.exit(EXIT_CODES.MIGRATION_ERROR);
     }
   } finally {
     unregisterActiveEngine();

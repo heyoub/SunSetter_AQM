@@ -1,6 +1,10 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import { TableInfo, SchemaInfo } from '../introspector/schema-introspector.js';
+import {
+  TableInfo,
+  SchemaInfo,
+  ColumnInfo,
+} from '../introspector/schema-introspector.js';
 import { TypeMapper } from '../mapper/type-mapper.js';
 
 export interface GeneratorOptions {
@@ -472,7 +476,7 @@ export default ${this.toCamelCase(table.tableName)};
     return this.typeMapper.mapColumnToTypeScript(primaryKeyCol).type;
   }
 
-  private getZodType(column: any): string {
+  private getZodType(column: ColumnInfo): string {
     switch (column.dataType.toLowerCase()) {
       case 'text':
       case 'varchar':
@@ -491,13 +495,13 @@ export default ${this.toCamelCase(table.tableName)};
         return 'z.date()';
       case 'json':
       case 'jsonb':
-        return 'z.record(z.any())';
+        return 'z.record(z.unknown())';
       default:
         return 'z.string()';
     }
   }
 
-  private getClassValidatorDecorators(column: any): string[] {
+  private getClassValidatorDecorators(column: ColumnInfo): string[] {
     const decorators: string[] = [];
 
     if (column.isNullable) {
@@ -536,7 +540,7 @@ export default ${this.toCamelCase(table.tableName)};
     return decorators;
   }
 
-  private getConvexType(column: any): string {
+  private getConvexType(column: ColumnInfo): string {
     switch (column.dataType.toLowerCase()) {
       case 'text':
       case 'varchar':

@@ -371,6 +371,25 @@ export class RollbackManager {
           for (let i = 0; i < convexIds.length; i += batchSize) {
             const batch = convexIds.slice(i, i + batchSize);
             const deleted = await convexClient.batchDelete(tableName, batch);
+
+            // CRITICAL FIX: Verify deletion count matches expected
+            if (deleted !== batch.length) {
+              console.warn(
+                `Rollback verification warning for ${tableName}: ` +
+                  `Expected to delete ${batch.length} documents, but deleted ${deleted}. ` +
+                  `This may indicate partial deletion or missing documents.`
+              );
+              // Add a warning to errors but don't fail the rollback
+              const verificationWarning: MigrationError = {
+                code: 'ROLLBACK_WARNING',
+                message: `Deletion count mismatch: expected ${batch.length}, deleted ${deleted}`,
+                table: tableName,
+                retryable: false,
+              };
+              result.errors.push(verificationWarning);
+              tableResult.errors.push(verificationWarning);
+            }
+
             tableResult.deletedCount += deleted;
             result.deletedDocuments += deleted;
           }

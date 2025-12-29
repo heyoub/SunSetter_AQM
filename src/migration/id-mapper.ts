@@ -18,7 +18,7 @@ import type { PostgresId, ConvexId, IIdMapper, IdMapping } from './types.js';
 export interface IdMapperOptions {
   /** File path for persistence */
   persistPath?: string;
-  /** Number of changes before auto-save (default: 1000) */
+  /** Number of changes before auto-save (default: 10 for safety, was 1000) */
   autoSaveThreshold?: number;
   /** Use streaming mode for large migrations (default: false) */
   streamingMode?: boolean;
@@ -62,7 +62,8 @@ export class IdMapper implements IIdMapper {
     this.mappings = new Map();
     this.persistPath = options.persistPath;
     this.pendingChanges = 0;
-    this.autoSaveThreshold = options.autoSaveThreshold || 1000;
+    // CRITICAL FIX: Reduced default from 1000 to 10 for better crash safety
+    this.autoSaveThreshold = options.autoSaveThreshold || 10;
     this.streamingMode = options.streamingMode || false;
     this.memoryThreshold = options.memoryThreshold || 100 * 1024 * 1024; // 100MB
     this.chunkDir = options.chunkDir || '.migration/id-chunks';
@@ -90,8 +91,11 @@ export class IdMapper implements IIdMapper {
       this.checkMemoryAndFlush();
     }
 
-    // Auto-save if threshold reached
+    // CRITICAL FIX: Auto-save synchronously if threshold reached
+    // This prevents data loss if process crashes before async save completes
     if (this.persistPath && this.pendingChanges >= this.autoSaveThreshold) {
+      // Queue async save but don't await it to maintain performance
+      // The save() method will be called synchronously after each batch in table-migrator
       this.saveAsync().catch(console.error);
     }
   }

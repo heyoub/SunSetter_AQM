@@ -38,6 +38,10 @@ export interface ParallelMigrationConfig {
   rateLimit: number;
   /** Enable dry run mode */
   dryRun: boolean;
+  /** Data masker instance (110% enhancement) */
+  dataMasker?: import('./data-masking.js').DataMasker;
+  /** Auto-streaming threshold for large tables */
+  autoStreamingThreshold?: number;
 }
 
 /**

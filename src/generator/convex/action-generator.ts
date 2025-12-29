@@ -124,6 +124,28 @@ ${actions.join('\n\n')}
  * 1. Fetches the document from Convex
  * 2. Sends it to an external API
  * 3. Updates the document with the response
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useAction } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function Sync${pascalName}Button({ id }: { id: Id<"${tableName}"> }) {
+ *   const sync = useAction(api.${tableName}.syncExternal);
+ *
+ *   const handleSync = async () => {
+ *     const result = await sync({ id });
+ *     console.log("Synced:", result);
+ *   };
+ *
+ *   return <button onClick={handleSync}>Sync to External API</button>;
+ * }
+ * \`\`\`
+ *
+ * @param args.id - The document ID to sync
+ * @param args.externalApiUrl - Optional custom API URL
+ * @returns Result object with sync status and external response
  */
 export const syncExternal = action({
   args: {
@@ -200,6 +222,28 @@ export const syncExternal = action({
  * 1. Fetches data from an external API
  * 2. Transforms the response to match your schema
  * 3. Creates a new document in Convex
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useAction } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function Import${pascalName}({ externalId }: { externalId: string }) {
+ *   const fetchExternal = useAction(api.${tableName}.fetchExternal);
+ *
+ *   const handleImport = async () => {
+ *     const result = await fetchExternal({ externalId });
+ *     console.log("Imported with ID:", result.documentId);
+ *   };
+ *
+ *   return <button onClick={handleImport}>Import from API</button>;
+ * }
+ * \`\`\`
+ *
+ * @param args.externalId - The ID in the external system
+ * @param args.externalApiUrl - Optional custom API URL
+ * @returns Result object with created document ID
  */
 export const fetchExternal = action({
   args: {
@@ -264,6 +308,34 @@ export const fetchExternal = action({
  * - Image/file processing
  * - Validation with external service
  * - Enrichment from third-party data
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useAction } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function Process${pascalName}({ id }: { id: Id<"${tableName}"> }) {
+ *   const process = useAction(api.${tableName}.processDocument);
+ *
+ *   const handleProcess = async (type: string) => {
+ *     const result = await process({ id, processingType: type });
+ *     console.log("Processed:", result);
+ *   };
+ *
+ *   return (
+ *     <div>
+ *       <button onClick={() => handleProcess("analyze")}>Analyze</button>
+ *       <button onClick={() => handleProcess("validate")}>Validate</button>
+ *       <button onClick={() => handleProcess("enrich")}>Enrich</button>
+ *     </div>
+ *   );
+ * }
+ * \`\`\`
+ *
+ * @param args.id - The document ID to process
+ * @param args.processingType - Type of processing (analyze, validate, enrich, etc.)
+ * @returns Result object with processing results
  */
 export const processDocument = action({
   args: {
@@ -352,6 +424,38 @@ async function enrichData(doc: any) {
  * 1. Fetches multiple documents from Convex
  * 2. Sends them in batch to an external API
  * 3. Returns sync results for each document
+ *
+ * Automatically batches requests to respect API rate limits and prevent timeouts.
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useAction } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function BatchSync${pascalName}({ ids }: { ids: Array<Id<"${tableName}">> }) {
+ *   const batchSync = useAction(api.${tableName}.batchSync);
+ *   const [syncing, setSyncing] = useState(false);
+ *
+ *   const handleSync = async () => {
+ *     setSyncing(true);
+ *     const result = await batchSync({ ids, batchSize: 10 });
+ *     console.log(\`Success: \${result.successCount} / \${result.totalProcessed}\`);
+ *     setSyncing(false);
+ *   };
+ *
+ *   return (
+ *     <button onClick={handleSync} disabled={syncing}>
+ *       {syncing ? "Syncing..." : \`Sync \${ids.length} items\`}
+ *     </button>
+ *   );
+ * }
+ * \`\`\`
+ *
+ * @param args.ids - Array of document IDs to sync
+ * @param args.externalApiUrl - Optional custom API URL
+ * @param args.batchSize - Number of items per batch (default: 10)
+ * @returns Summary object with success/failure counts and per-item results
  */
 export const batchSync = action({
   args: {

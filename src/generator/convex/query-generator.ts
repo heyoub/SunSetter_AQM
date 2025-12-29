@@ -114,12 +114,27 @@ ${queries.join('\n\n')}
 
     return `/**
  * Get a single ${pascalName} by ID
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useQuery } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function ${pascalName}Detail({ id }: { id: Id<"${tableName}"> }) {
+ *   const ${this.toCamelCase(tableName)} = useQuery(api.${tableName}.get, { id });
+ *   return <div>{${this.toCamelCase(tableName)}?.name}</div>;
+ * }
+ * \`\`\`
+ *
+ * @param args.id - The document ID
+ * @returns The ${pascalName} document or null if not found
  */
 export const get = query({
   args: {
     id: v.id("${tableName}"),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<typeof ctx.db extends { get: (table: "${tableName}", id: Id<"${tableName}">) => Promise<infer T> } ? T : any> => {
     return await ${getCall};
   },
 });`;
@@ -130,30 +145,51 @@ export const get = query({
    */
   private generateList(tableName: string, pascalName: string): string {
     return `/**
- * List all ${pascalName} documents with optional pagination
+ * List all ${pascalName} documents with cursor-based pagination
+ *
+ * Uses Convex's official paginate() API for efficient cursor-based pagination.
+ * See: https://docs.convex.dev/database/pagination
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage with usePaginatedQuery:
+ * import { usePaginatedQuery } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function ${pascalName}List() {
+ *   const { results, status, loadMore } = usePaginatedQuery(
+ *     api.${tableName}.list,
+ *     {},
+ *     { initialNumItems: 20 }
+ *   );
+ *
+ *   return (
+ *     <div>
+ *       {results.map(item => <div key={item._id}>{item.name}</div>)}
+ *       <button onClick={() => loadMore(20)} disabled={status !== "CanLoadMore"}>
+ *         Load More
+ *       </button>
+ *     </div>
+ *   );
+ * }
+ * \`\`\`
+ *
+ * @param args.paginationOpts - Pagination options (numItems, cursor, endCursor)
+ * @returns Paginated results with continuation cursor
  */
 export const list = query({
   args: {
-    limit: v.optional(v.number()),
-    cursor: v.optional(v.string()),
+    paginationOpts: v.optional(v.object({
+      numItems: v.number(),
+      cursor: v.union(v.string(), v.null()),
+      endCursor: v.optional(v.union(v.string(), v.null())),
+    })),
   },
   handler: async (ctx, args) => {
-    const limit = args.limit ?? 50;
-
-    const results = await ctx.db
+    return await ctx.db
       .query("${tableName}")
       .order("desc")
-      .take(limit + 1);
-
-    const hasMore = results.length > limit;
-    const items = hasMore ? results.slice(0, -1) : results;
-    const nextCursor = hasMore && items.length > 0 ? items[items.length - 1]._id : undefined;
-
-    return {
-      items,
-      nextCursor,
-      hasMore,
-    };
+      .paginate(args.paginationOpts ?? { numItems: 50, cursor: null });
   },
 });`;
   }
@@ -177,6 +213,23 @@ export const list = query({
 
       queries.push(`/**
  * Get ${pascalName} documents by ${fieldName}
+ *
+ * Uses index for efficient lookup by foreign key reference.
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useQuery } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function ${pascalName}sByRef({ ${fieldName} }: { ${fieldName}: Id<"${refTable}"> }) {
+ *   const items = useQuery(api.${tableName}.${methodName}, { ${fieldName} });
+ *   return <div>{items?.length} ${pascalName}(s) found</div>;
+ * }
+ * \`\`\`
+ *
+ * @param args.${fieldName} - The ${refTable} reference ID
+ * @returns Array of ${pascalName} documents matching the ${fieldName}
  */
 export const ${methodName} = query({
   args: {
@@ -213,6 +266,23 @@ export const ${methodName} = query({
 
       queries.push(`/**
  * Get a ${pascalName} by unique ${fieldName}
+ *
+ * Uses unique index for efficient O(1) lookup.
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useQuery } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function ${pascalName}ByField({ ${fieldName} }: { ${fieldName}: string }) {
+ *   const item = useQuery(api.${tableName}.${methodName}, { ${fieldName} });
+ *   return <div>{item?.name || "Not found"}</div>;
+ * }
+ * \`\`\`
+ *
+ * @param args.${fieldName} - The unique ${fieldName} value
+ * @returns The ${pascalName} document or null if not found
  */
 export const ${methodName} = query({
   args: {
@@ -240,18 +310,43 @@ export const ${methodName} = query({
   ): string {
     const searchFields = textFields.slice(0, 3); // Limit to 3 fields
     const fieldNames = searchFields.map((f) => this.toCamelCase(f.columnName));
-
-    const fieldChecks = fieldNames
-      .map(
-        (f) => `const ${f}Match = doc.${f}?.toLowerCase().includes(searchTerm);`
-      )
-      .join('\n        ');
-
-    const returnCondition = fieldNames.map((f) => `${f}Match`).join(' || ');
+    const primarySearchField = fieldNames[0];
 
     return `/**
- * Search ${pascalName} documents by text fields
- * Searches in: ${fieldNames.join(', ')}
+ * Search ${pascalName} documents using full-text search
+ *
+ * Uses Convex search indexes for efficient full-text search.
+ * Primary search field: ${primarySearchField}
+ * See: https://docs.convex.dev/text-search
+ *
+ * NOTE: For this search to work, you must enable search indexes in schema.ts.
+ * Add the following to your SchemaGenerator options:
+ * \`\`\`typescript
+ * new SchemaGenerator({ generateSearchIndexes: true })
+ * \`\`\`
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useQuery } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function ${pascalName}Search() {
+ *   const [searchTerm, setSearchTerm] = useState("");
+ *   const results = useQuery(api.${tableName}.search, { searchQuery: searchTerm });
+ *
+ *   return (
+ *     <div>
+ *       <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+ *       {results?.map(item => <div key={item._id}>{item.${primarySearchField}}</div>)}
+ *     </div>
+ *   );
+ * }
+ * \`\`\`
+ *
+ * @param args.searchQuery - The search query string
+ * @param args.limit - Maximum number of results (default: 20)
+ * @returns Array of matching ${pascalName} documents
  */
 export const search = query({
   args: {
@@ -260,17 +355,15 @@ export const search = query({
   },
   handler: async (ctx, args) => {
     const limit = args.limit ?? 20;
-    const searchTerm = args.searchQuery.toLowerCase();
 
-    // Note: For production, consider using Convex search indexes
-    const all = await ctx.db.query("${tableName}").collect();
+    // Use Convex search index for efficient full-text search
+    // This requires search index to be defined in schema.ts
+    const results = await ctx.db
+      .query("${tableName}")
+      .withSearchIndex("search_${primarySearchField}", (q) => q.search("${primarySearchField}", args.searchQuery))
+      .take(limit);
 
-    return all
-      .filter((doc) => {
-        ${fieldChecks}
-        return ${returnCondition};
-      })
-      .slice(0, limit);
+    return results;
   },
 });`;
   }
@@ -281,10 +374,24 @@ export const search = query({
   private generateCount(tableName: string, pascalName: string): string {
     return `/**
  * Count all ${pascalName} documents
+ *
+ * @example
+ * \`\`\`typescript
+ * // React usage:
+ * import { useQuery } from "convex/react";
+ * import { api } from "./_generated/api";
+ *
+ * function ${pascalName}Stats() {
+ *   const count = useQuery(api.${tableName}.count);
+ *   return <div>Total ${pascalName}: {count}</div>;
+ * }
+ * \`\`\`
+ *
+ * @returns The total number of ${pascalName} documents
  */
 export const count = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<number> => {
     const results = await ctx.db.query("${tableName}").collect();
     return results.length;
   },

@@ -393,6 +393,76 @@ const POSTGRESQL_TYPES: Record<string, ConvexTypeMapping> = {
 
   // OID types
   oid: { validator: 'v.number()', typescript: 'number', needsTransform: false },
+
+  // ═══════════════════════════════════════════════════════════════
+  // POSTGRESQL EXTENSION TYPES
+  // ═══════════════════════════════════════════════════════════════
+  // ltree extension - hierarchical tree-like structures
+  ltree: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  lquery: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  ltxtquery: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+
+  // hstore extension - key-value pairs
+  hstore: {
+    validator: 'v.any()',
+    typescript: 'Record<string, string | null>',
+    needsTransform: true,
+    transformFn: 'parseHstore',
+  },
+
+  // cube extension - multidimensional cubes
+  cube: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'cubeToString',
+  },
+
+  // isbn extension types
+  isbn: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  isbn13: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  issn: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  issn13: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+
+  // Additional network types from cidr extension
+  'cidr[]': {
+    validator: 'v.array(v.string())',
+    typescript: 'string[]',
+    needsTransform: false,
+  },
+  'inet[]': {
+    validator: 'v.array(v.string())',
+    typescript: 'string[]',
+    needsTransform: false,
+  },
 };
 
 /**

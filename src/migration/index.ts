@@ -20,4 +20,24 @@ export {
   MigrationEngine,
   ConvexHttpClient,
   createMigrationEngine,
+  createParallelMigrationEngine,
+  createMultiSchemaMigrationEngine,
 } from './migration-engine.js';
+
+// 110% ENHANCEMENTS: Export new enterprise utilities
+export { HookExecutor, COMMON_HOOKS } from './hooks.js';
+export type { HookConfig, HookResult, MigrationHooks } from './hooks.js';
+
+export { SlackNotifier } from './notifications.js';
+export type { SlackNotificationConfig } from './notifications.js';
+
+export { MemoryMonitor } from './memory-monitor.js';
+export type { MemoryMonitorConfig, MemorySnapshot } from './memory-monitor.js';
+
+export { DataMasker, COMMON_MASKING_RULES } from './data-masking.js';
+export type {
+  MaskingStrategy,
+  MaskingRule,
+  TableMaskingConfig,
+  DataMaskingConfig,
+} from './data-masking.js';

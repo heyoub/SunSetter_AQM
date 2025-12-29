@@ -251,6 +251,35 @@ const POSTGRES_TO_CONVEX_MAP: Record<string, string> = {
   box3d:
     'v.object({ xmin: v.number(), ymin: v.number(), zmin: v.number(), xmax: v.number(), ymax: v.number(), zmax: v.number() })',
 
+  // ═══════════════════════════════════════════════════════════════
+  // POSTGRESQL EXTENSION TYPES
+  // ═══════════════════════════════════════════════════════════════
+  // ltree extension - hierarchical tree-like structures (materialized path)
+  ltree: 'v.string()',
+  lquery: 'v.string()',
+  ltxtquery: 'v.string()',
+
+  // hstore extension - key-value pairs stored as object
+  hstore: 'v.any()',
+
+  // cube extension - multidimensional cubes stored as string
+  cube: 'v.string()',
+
+  // isbn/issn extension types - book identifiers
+  isbn: 'v.string()',
+  isbn13: 'v.string()',
+  issn: 'v.string()',
+  issn13: 'v.string()',
+
+  // earthdistance extension types
+  earth: 'v.string()',
+
+  // seg extension - line segments
+  seg: 'v.string()',
+
+  // intarray extension - array operations
+  _int4: 'v.array(v.number())',
+
   // USER-DEFINED (handled separately)
   'user-defined': 'v.any()',
 };

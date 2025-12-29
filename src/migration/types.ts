@@ -130,6 +130,8 @@ export interface MigrationConfig {
   truncateExisting: boolean;
   /** Log level */
   logLevel: 'quiet' | 'normal' | 'verbose';
+  /** Parallel migration config (partial - missing fields use defaults) */
+  parallel?: Partial<ParallelMigrationConfig>;
 }
 
 /**

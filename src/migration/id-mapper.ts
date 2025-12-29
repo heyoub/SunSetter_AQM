@@ -7,11 +7,32 @@
  */
 
 import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
 import * as path from 'path';
+import * as readline from 'readline';
 import type { PostgresId, ConvexId, IIdMapper, IdMapping } from './types.js';
 
 /**
+ * ID Mapper configuration options
+ */
+export interface IdMapperOptions {
+  /** File path for persistence */
+  persistPath?: string;
+  /** Number of changes before auto-save (default: 1000) */
+  autoSaveThreshold?: number;
+  /** Use streaming mode for large migrations (default: false) */
+  streamingMode?: boolean;
+  /** Memory threshold in bytes before forcing a flush (default: 100MB) */
+  memoryThreshold?: number;
+  /** Directory for streaming chunks (default: .migration/id-chunks) */
+  chunkDir?: string;
+  /** Max mappings per chunk file (default: 100000) */
+  chunkSize?: number;
+}
+
+/**
  * In-memory ID mapper with persistence support
+ * Supports streaming mode for large migrations with millions of IDs
  */
 export class IdMapper implements IIdMapper {
   /** Maps tableName -> (postgresId -> convexId) */
@@ -22,14 +43,33 @@ export class IdMapper implements IIdMapper {
   private pendingChanges: number;
   /** Auto-save threshold */
   private autoSaveThreshold: number;
+  /** Streaming mode enabled */
+  private streamingMode: boolean;
+  /** Memory threshold for auto-flush */
+  private memoryThreshold: number;
+  /** Directory for chunk files in streaming mode */
+  private chunkDir: string;
+  /** Max mappings per chunk */
+  private chunkSize: number;
+  /** Current chunk number */
+  private currentChunk: number;
+  /** Stream for appending mappings */
+  private appendStream: fsSync.WriteStream | null;
+  /** Index of flushed chunks per table */
+  private flushedChunks: Map<string, number[]>;
 
-  constructor(
-    options: { persistPath?: string; autoSaveThreshold?: number } = {}
-  ) {
+  constructor(options: IdMapperOptions = {}) {
     this.mappings = new Map();
     this.persistPath = options.persistPath;
     this.pendingChanges = 0;
     this.autoSaveThreshold = options.autoSaveThreshold || 1000;
+    this.streamingMode = options.streamingMode || false;
+    this.memoryThreshold = options.memoryThreshold || 100 * 1024 * 1024; // 100MB
+    this.chunkDir = options.chunkDir || '.migration/id-chunks';
+    this.chunkSize = options.chunkSize || 100000;
+    this.currentChunk = 0;
+    this.appendStream = null;
+    this.flushedChunks = new Map();
   }
 
   /**
@@ -45,9 +85,159 @@ export class IdMapper implements IIdMapper {
     tableMap.set(this.normalizeId(postgresId), convexId);
     this.pendingChanges++;
 
+    // In streaming mode, check memory and flush if needed
+    if (this.streamingMode) {
+      this.checkMemoryAndFlush();
+    }
+
     // Auto-save if threshold reached
     if (this.persistPath && this.pendingChanges >= this.autoSaveThreshold) {
       this.saveAsync().catch(console.error);
+    }
+  }
+
+  /**
+   * Check memory usage and flush to disk if needed (streaming mode)
+   */
+  private checkMemoryAndFlush(): void {
+    const memUsage = process.memoryUsage();
+    if (memUsage.heapUsed > this.memoryThreshold) {
+      this.flushToDisk().catch(console.error);
+    }
+  }
+
+  /**
+   * Flush in-memory mappings to disk chunks (streaming mode)
+   */
+  async flushToDisk(): Promise<void> {
+    if (!this.streamingMode) return;
+
+    // Create chunk directory if needed
+    await fs.mkdir(this.chunkDir, { recursive: true });
+
+    // Write each table's mappings to a chunk file
+    for (const [tableName, tableMap] of this.mappings) {
+      if (tableMap.size === 0) continue;
+
+      const chunkPath = path.join(
+        this.chunkDir,
+        `${tableName}_chunk_${this.currentChunk}.jsonl`
+      );
+
+      // Write as JSON Lines format (one mapping per line)
+      const lines: string[] = [];
+      for (const [pgId, convexId] of tableMap) {
+        lines.push(JSON.stringify({ p: pgId, c: convexId }));
+      }
+
+      await fs.appendFile(chunkPath, lines.join('\n') + '\n');
+
+      // Track flushed chunks
+      let chunks = this.flushedChunks.get(tableName);
+      if (!chunks) {
+        chunks = [];
+        this.flushedChunks.set(tableName, chunks);
+      }
+      if (!chunks.includes(this.currentChunk)) {
+        chunks.push(this.currentChunk);
+      }
+    }
+
+    // Clear in-memory mappings after flush
+    this.mappings.clear();
+    this.currentChunk++;
+    this.pendingChanges = 0;
+
+    // Hint to GC
+    if (global.gc) {
+      global.gc();
+    }
+  }
+
+  /**
+   * Load mappings from chunk files (streaming mode)
+   */
+  async loadFromChunks(tableName: string): Promise<void> {
+    if (!this.streamingMode) return;
+
+    const chunks = this.flushedChunks.get(tableName) || [];
+    let tableMap = this.mappings.get(tableName);
+    if (!tableMap) {
+      tableMap = new Map();
+      this.mappings.set(tableName, tableMap);
+    }
+
+    for (const chunkNum of chunks) {
+      const chunkPath = path.join(
+        this.chunkDir,
+        `${tableName}_chunk_${chunkNum}.jsonl`
+      );
+
+      try {
+        const fileStream = fsSync.createReadStream(chunkPath);
+        const rl = readline.createInterface({
+          input: fileStream,
+          crlfDelay: Infinity,
+        });
+
+        for await (const line of rl) {
+          if (line.trim()) {
+            const { p, c } = JSON.parse(line);
+            tableMap.set(this.normalizeId(p), c);
+          }
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }
+  }
+
+  /**
+   * Enable streaming mode for large migrations
+   */
+  enableStreamingMode(options?: {
+    chunkDir?: string;
+    memoryThreshold?: number;
+    chunkSize?: number;
+  }): void {
+    this.streamingMode = true;
+    if (options?.chunkDir) this.chunkDir = options.chunkDir;
+    if (options?.memoryThreshold) this.memoryThreshold = options.memoryThreshold;
+    if (options?.chunkSize) this.chunkSize = options.chunkSize;
+  }
+
+  /**
+   * Disable streaming mode
+   */
+  disableStreamingMode(): void {
+    this.streamingMode = false;
+  }
+
+  /**
+   * Check if streaming mode is enabled
+   */
+  isStreamingMode(): boolean {
+    return this.streamingMode;
+  }
+
+  /**
+   * Close any open streams (call on shutdown)
+   */
+  async close(): Promise<void> {
+    if (this.appendStream) {
+      return new Promise((resolve, reject) => {
+        this.appendStream!.end((error: Error | undefined) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+    }
+
+    // Final flush if in streaming mode
+    if (this.streamingMode && this.count() > 0) {
+      await this.flushToDisk();
     }
   }
 

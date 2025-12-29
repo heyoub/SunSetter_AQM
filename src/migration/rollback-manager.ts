@@ -57,12 +57,24 @@ export interface RollbackState {
 }
 
 /**
+ * Per-table rollback result
+ */
+export interface TableRollbackResult {
+  tableName: string;
+  success: boolean;
+  deletedCount: number;
+  errors: MigrationError[];
+}
+
+/**
  * Rollback operation result
  */
 export interface RollbackResult {
   success: boolean;
-  /** Tables that were rolled back */
+  /** Tables that were rolled back (simple list) */
   rolledBackTables: string[];
+  /** Per-table rollback results with details */
+  tablesRolledBack: TableRollbackResult[];
   /** Number of documents deleted from Convex */
   deletedDocuments: number;
   /** Errors encountered during rollback */
@@ -297,6 +309,7 @@ export class RollbackManager {
     const result: RollbackResult = {
       success: true,
       rolledBackTables: [],
+      tablesRolledBack: [],
       deletedDocuments: 0,
       errors: [],
       duration: 0,
@@ -328,8 +341,15 @@ export class RollbackManager {
 
     for (const tableName of tablesToRollback) {
       const convexIds = this.getCreatedConvexIds(tableName);
+      const tableResult: TableRollbackResult = {
+        tableName,
+        success: true,
+        deletedCount: 0,
+        errors: [],
+      };
 
       if (convexIds.length === 0) {
+        result.tablesRolledBack.push(tableResult);
         continue;
       }
 
@@ -338,7 +358,9 @@ export class RollbackManager {
           `[Dry Run] Would delete ${convexIds.length} documents from ${tableName}`
         );
         result.rolledBackTables.push(tableName);
+        tableResult.deletedCount = convexIds.length;
         result.deletedDocuments += convexIds.length;
+        result.tablesRolledBack.push(tableResult);
         continue;
       }
 
@@ -349,20 +371,26 @@ export class RollbackManager {
           for (let i = 0; i < convexIds.length; i += batchSize) {
             const batch = convexIds.slice(i, i + batchSize);
             const deleted = await convexClient.batchDelete(tableName, batch);
+            tableResult.deletedCount += deleted;
             result.deletedDocuments += deleted;
           }
           result.rolledBackTables.push(tableName);
+          tableResult.success = true;
         } catch (error: unknown) {
-          result.errors.push({
+          const migrationError: MigrationError = {
             code: 'CONVEX_ERROR',
             message: `Failed to rollback table ${tableName}: ${(error as Error).message}`,
             table: tableName,
             originalError: error as Error,
             retryable: true,
-          });
+          };
+          result.errors.push(migrationError);
+          tableResult.errors.push(migrationError);
+          tableResult.success = false;
           result.success = false;
         }
       }
+      result.tablesRolledBack.push(tableResult);
     }
 
     result.duration = Date.now() - startTime;

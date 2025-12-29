@@ -47,6 +47,10 @@ import type { MigrationConfig, MigrationEvent } from '../../migration/types.js';
 let activeEngine: MigrationEngine | null = null;
 let activeReporter: ProgressReporter | null = null;
 let isShuttingDown = false;
+let shutdownTimeoutHandle: NodeJS.Timeout | null = null;
+
+/** Graceful shutdown timeout in milliseconds (default: 30 seconds) */
+const SHUTDOWN_TIMEOUT_MS = 30000;
 
 /**
  * Command line options with improved typing
@@ -64,6 +68,10 @@ interface MigrateOptions {
   maxRetries?: string;
   dryRun?: boolean;
   resume?: boolean;
+  rollback?: boolean;
+  rollbackTables?: string;
+  parallel?: boolean;
+  parallelTables?: string;
   yes?: boolean;
   verbose?: boolean;
   quiet?: boolean;
@@ -86,6 +94,9 @@ function setupSignalHandlers(): void {
     if (isShuttingDown) {
       // Force exit on second signal
       activeReporter?.error(`Force exit requested. Exiting immediately.`);
+      if (shutdownTimeoutHandle) {
+        clearTimeout(shutdownTimeoutHandle);
+      }
       process.exit(1);
     }
 
@@ -93,19 +104,47 @@ function setupSignalHandlers(): void {
     console.log(); // New line after ^C
     activeReporter?.warn(`${signal} received. Gracefully shutting down...`);
     activeReporter?.log('Press Ctrl+C again to force exit');
+    activeReporter?.log(`Shutdown timeout: ${SHUTDOWN_TIMEOUT_MS / 1000}s`);
+
+    // Set up shutdown timeout - force exit if graceful shutdown takes too long
+    shutdownTimeoutHandle = setTimeout(() => {
+      activeReporter?.error(
+        `Shutdown timeout exceeded (${SHUTDOWN_TIMEOUT_MS / 1000}s). Forcing exit...`
+      );
+      activeReporter?.close();
+      process.exit(1);
+    }, SHUTDOWN_TIMEOUT_MS);
 
     if (activeEngine) {
       try {
+        // Abort ongoing operations and save state
         activeEngine.abort();
-        activeReporter?.info('Migration paused. State saved for resume.');
+        activeReporter?.info('Migration paused. Saving state for resume...');
 
-        await activeEngine.close();
+        // Wait for state to be saved with a reasonable timeout
+        const saveStatePromise = activeEngine.close();
+        await Promise.race([
+          saveStatePromise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('State save timeout')), 10000)
+          ),
+        ]).catch((error) => {
+          activeReporter?.warn(`State save incomplete: ${(error as Error).message}`);
+        });
+
         activeReporter?.info('Database connections closed.');
+        activeReporter?.success('State saved. Use --resume to continue later.');
       } catch (error) {
         activeReporter?.error(
           `Error during shutdown: ${(error as Error).message}`
         );
       }
+    }
+
+    // Clear the timeout since we're exiting normally
+    if (shutdownTimeoutHandle) {
+      clearTimeout(shutdownTimeoutHandle);
+      shutdownTimeoutHandle = null;
     }
 
     activeReporter?.close();
@@ -114,6 +153,22 @@ function setupSignalHandlers(): void {
 
   process.on('SIGINT', () => handleSignal('SIGINT'));
   process.on('SIGTERM', () => handleSignal('SIGTERM'));
+
+  // Handle uncaught exceptions gracefully
+  process.on('uncaughtException', (error) => {
+    activeReporter?.error(`Uncaught exception: ${error.message}`);
+    if (activeEngine) {
+      activeEngine.abort();
+    }
+    activeReporter?.close();
+    process.exit(1);
+  });
+
+  // Handle unhandled promise rejections
+  process.on('unhandledRejection', (reason) => {
+    const message = reason instanceof Error ? reason.message : String(reason);
+    activeReporter?.error(`Unhandled rejection: ${message}`);
+  });
 }
 
 /**
@@ -313,6 +368,17 @@ ${chalk.bold('Rate Limiting:')}
 ${chalk.bold('Resumable Migration:')}
   If a migration is interrupted, use --resume to continue
   from the last checkpoint. State is saved in .migration/
+
+${chalk.bold('Rollback:')}
+  Use --rollback to undo a migration. The tool tracks all
+  migrated documents and can delete them from Convex.
+  Use --rollback-tables to rollback specific tables only.
+
+${chalk.bold('Parallel Migration:')}
+  Use --parallel to migrate independent tables concurrently.
+  Tables are organized by dependency levels and migrated in
+  parallel within each level. Use --parallel-tables to control
+  concurrency (default: 4).
 `
     )
 
@@ -361,6 +427,17 @@ ${chalk.bold('Resumable Migration:')}
     // Execution control
     .option('-n, --dry-run', 'Preview changes without writing files or data')
     .option('--resume', 'Resume a previously interrupted migration')
+    .option('--rollback', 'Rollback a previously completed migration')
+    .option(
+      '--rollback-tables <list>',
+      'Comma-separated list of tables to rollback (default: all)'
+    )
+    .option('--parallel', 'Enable parallel table migration')
+    .option(
+      '--parallel-tables <number>',
+      'Maximum number of tables to migrate in parallel (1-8)',
+      '4'
+    )
     .option('-y, --yes', 'Skip confirmation prompts (use defaults)')
 
     // Logging options
@@ -394,6 +471,12 @@ async function runMigrateCommand(options: MigrateOptions): Promise<void> {
     // Show welcome banner
     reporter.printWelcome('PostgreSQL to Convex Migration', '1.0.0');
 
+    // Check for rollback mode first
+    if (options.rollback) {
+      await runRollbackMode(options, reporter);
+      return;
+    }
+
     // Determine if interactive mode
     const isInteractive =
       !options.yes && !options.connection && process.stdin.isTTY;
@@ -418,6 +501,21 @@ async function runMigrateCommand(options: MigrateOptions): Promise<void> {
       outputDir = result.outputDir;
     }
 
+    // Add parallel and resume config
+    if (options.parallel) {
+      config.parallel = {
+        enabled: true,
+        maxParallelTables: parseNumericOption(
+          options.parallelTables,
+          'parallel-tables',
+          1,
+          8,
+          4,
+          reporter
+        ),
+      };
+    }
+
     // Log configuration in debug mode
     reporter.debug('Migration configuration', {
       mode,
@@ -425,6 +523,8 @@ async function runMigrateCommand(options: MigrateOptions): Promise<void> {
       batchSize: config.batchSize,
       rateLimit: config.rateLimit,
       dryRun: config.dryRun,
+      parallel: config.parallel,
+      resume: config.resume,
     });
 
     // Execute migration based on mode
@@ -935,5 +1035,152 @@ function handleMigrationEvent(
     case 'migration:error':
       reporter.error(`Migration failed: ${event.error?.message}`);
       break;
+  }
+}
+
+// ============================================================================
+// Rollback Mode
+// ============================================================================
+
+/**
+ * Run rollback mode to undo a previous migration
+ */
+async function runRollbackMode(
+  options: MigrateOptions,
+  reporter: ProgressReporter
+): Promise<void> {
+  reporter.section('Migration Rollback');
+
+  // Validate Convex credentials
+  const convexUrl = options.convexUrl || process.env.CONVEX_URL;
+  const convexKey = options.convexKey || process.env.CONVEX_DEPLOY_KEY;
+
+  if (!convexUrl) {
+    throw new ConfigurationError(
+      'Convex URL is required for rollback',
+      ERROR_CODES.CONFIG_MISSING_REQUIRED,
+      {
+        details: {
+          hint: 'Set CONVEX_URL environment variable or use --convex-url flag',
+        },
+      }
+    );
+  }
+
+  if (!convexKey) {
+    throw new ConfigurationError(
+      'Convex deploy key is required for rollback',
+      ERROR_CODES.CONFIG_MISSING_REQUIRED,
+      {
+        details: {
+          hint: 'Set CONVEX_DEPLOY_KEY environment variable or use --convex-key flag',
+        },
+      }
+    );
+  }
+
+  reporter.startSpinner('Initializing migration engine for rollback...');
+
+  const connectionString = getConnectionString(options, reporter);
+  const engine = await createMigrationEngine({
+    connectionString,
+    convexUrl,
+    convexDeployKey: convexKey,
+    stateDir: './.migration',
+  });
+
+  // Register engine for signal handling
+  registerActiveEngine(engine, reporter);
+
+  try {
+    reporter.succeedSpinner('Migration engine initialized');
+
+    // Get rollback summary first
+    reporter.startSpinner('Loading rollback state...');
+    const summary = await engine.getRollbackSummary();
+
+    const tableNames = Object.keys(summary.byTable);
+    if (!summary || tableNames.length === 0) {
+      reporter.failSpinner('No rollback state found');
+      reporter.box(
+        'No rollback state available.\nRollback is only possible for migrations that completed with rollback tracking enabled.',
+        'warning'
+      );
+      return;
+    }
+
+    reporter.succeedSpinner(`Found rollback state with ${tableNames.length} tables`);
+
+    // Show what will be rolled back
+    reporter.subsection('Tables to rollback:');
+    let totalDocs = 0;
+    for (const tableName of tableNames) {
+      const docCount = summary.byTable[tableName];
+      reporter.log(`  ${tableName}: ${docCount} documents`);
+      totalDocs += docCount;
+    }
+    reporter.log(`  Total: ${totalDocs} documents`);
+
+    // Parse rollback tables option
+    const rollbackTables = options.rollbackTables
+      ? options.rollbackTables.split(',').map((t) => t.trim()).filter(Boolean)
+      : undefined;
+
+    if (rollbackTables && rollbackTables.length > 0) {
+      reporter.log('');
+      reporter.log(`Rolling back only: ${rollbackTables.join(', ')}`);
+    }
+
+    // Confirm if not using --yes
+    if (!options.yes && process.stdin.isTTY) {
+      reporter.log('');
+      reporter.warn('This will DELETE all migrated documents from Convex!');
+      reporter.log('Press Ctrl+C to cancel or wait 5 seconds to continue...');
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+
+    // Perform rollback
+    reporter.section('Rolling Back');
+    reporter.startSpinner('Deleting migrated documents...');
+
+    const result = await engine.rollback({
+      tables: rollbackTables,
+      dryRun: options.dryRun,
+    });
+
+    reporter.succeedSpinner('Rollback complete');
+
+    // Print results
+    reporter.subsection('Rollback Results:');
+    for (const tableResult of result.tablesRolledBack) {
+      const status = tableResult.success ? chalk.green('OK') : chalk.red('FAIL');
+      reporter.log(
+        `  ${status} ${tableResult.tableName}: ${tableResult.deletedCount} deleted`
+      );
+      if (!tableResult.success && tableResult.errors.length > 0) {
+        reporter.error(`       ${tableResult.errors[0].message}`);
+      }
+    }
+
+    // Print summary
+    reporter.printSummary({
+      Status: result.success ? 'Completed' : 'Partial',
+      Duration: `${Math.round(result.duration / 1000)}s`,
+      'Tables rolled back': result.tablesRolledBack.filter((t) => t.success).length,
+      'Documents deleted': result.tablesRolledBack.reduce(
+        (sum, t) => sum + t.deletedCount,
+        0
+      ),
+      'Errors': result.errors.length,
+    });
+
+    if (result.success) {
+      reporter.box('Rollback completed successfully!', 'success');
+    } else {
+      reporter.box('Rollback completed with some errors.', 'warning');
+    }
+  } finally {
+    unregisterActiveEngine();
+    await engine.close();
   }
 }

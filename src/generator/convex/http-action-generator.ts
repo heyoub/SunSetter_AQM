@@ -185,31 +185,59 @@ const corsHeaders = {
     const authHelper = this.options.includeAuth
       ? `
 /**
- * Verify authentication (customize based on your auth strategy)
+ * Verify authentication for HTTP actions.
+ *
+ * IMPORTANT: HTTP actions don't have built-in auth like queries/mutations.
+ * You must verify tokens manually.
+ *
+ * Options for authentication:
+ * 1. Use Convex Auth with Clerk/Auth0 - verify JWTs using your provider's SDK
+ * 2. API Key authentication - store hashed keys in Convex and verify
+ * 3. Session tokens - verify against your session store
+ *
+ * For production, replace this stub with actual verification logic.
+ * See: https://docs.convex.dev/auth
  */
-async function verifyAuth(request: Request): Promise<{ authenticated: boolean; userId?: string }> {
+async function verifyAuth(request: Request): Promise<{ authenticated: boolean; userId?: string; error?: string }> {
   const authHeader = request.headers.get("Authorization");
 
   if (!authHeader) {
-    return { authenticated: false };
+    return { authenticated: false, error: "Missing Authorization header" };
   }
 
-  // Bearer token authentication
+  // Bearer token (JWT) authentication
   if (authHeader.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
-    // TODO: Implement your token verification logic
-    // Example: Verify JWT, check against database, etc.
-    return { authenticated: true, userId: "user_from_token" };
+
+    // SECURITY: You MUST implement actual token verification here.
+    // Example with Clerk: use @clerk/backend to verify the JWT
+    // Example with Auth0: use jose or auth0 SDK to verify
+    //
+    // For now, reject all tokens until verification is implemented:
+    console.warn("[AUTH] Bearer token verification not implemented - rejecting request");
+    return { authenticated: false, error: "Token verification not configured" };
+
+    // After implementing verification, return:
+    // return { authenticated: true, userId: verifiedUserId };
   }
 
   // API key authentication
   if (authHeader.startsWith("ApiKey ")) {
     const apiKey = authHeader.slice(7);
-    // TODO: Implement your API key verification logic
-    return { authenticated: true, userId: "user_from_api_key" };
+
+    // SECURITY: Verify API key against hashed keys stored in Convex.
+    // Use a timing-safe comparison to prevent timing attacks.
+    // Store only hashed API keys, never plaintext.
+    //
+    // For now, reject all API keys until verification is implemented:
+    console.warn("[AUTH] API key verification not implemented - rejecting request");
+    return { authenticated: false, error: "API key verification not configured" };
+
+    // After implementing verification, return:
+    // return { authenticated: true, userId: associatedUserId };
   }
 
-  return { authenticated: false };
+  return { authenticated: false, error: "Unsupported authentication scheme" };
 }`
       : '';
 

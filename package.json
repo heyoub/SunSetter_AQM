@@ -58,7 +58,8 @@
     "ora": "^7.0.1",
     "pg": "^8.11.3",
     "uuid": "^9.0.1",
-    "winston": "^3.11.0"
+    "winston": "^3.11.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "@types/cli-progress": "^3.11.5",

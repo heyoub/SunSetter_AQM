@@ -1,4 +1,28 @@
 import { Pool, PoolConfig, PoolClient } from 'pg';
+import * as fs from 'fs';
+import * as tls from 'tls';
+
+/**
+ * SSL configuration options for secure database connections
+ */
+export interface SSLConfig {
+  /** Enable SSL (default: true in production) */
+  enabled: boolean;
+  /**
+   * Reject unauthorized certificates (default: true)
+   * WARNING: Setting to false disables certificate verification and exposes
+   * the connection to man-in-the-middle attacks. Only use for development.
+   */
+  rejectUnauthorized?: boolean;
+  /** Path to CA certificate file */
+  ca?: string;
+  /** Path to client certificate file */
+  cert?: string;
+  /** Path to client key file */
+  key?: string;
+  /** Server name for SNI (Server Name Indication) */
+  serverName?: string;
+}
 
 export interface DatabaseConfig {
   host: string;
@@ -6,7 +30,8 @@ export interface DatabaseConfig {
   database: string;
   username: string;
   password: string;
-  ssl?: boolean;
+  /** SSL configuration - boolean for simple on/off or object for detailed config */
+  ssl?: boolean | SSLConfig;
   connectionTimeoutMillis?: number;
   idleTimeoutMillis?: number;
   max?: number;
@@ -95,7 +120,7 @@ export class DatabaseConnection {
       database: this.config.database,
       user: this.config.username,
       password: this.config.password,
-      ssl: this.config.ssl ? { rejectUnauthorized: false } : false,
+      ssl: this.buildSSLConfig(this.config.ssl),
       connectionTimeoutMillis: this.config.connectionTimeoutMs || 10000,
       idleTimeoutMillis: this.config.idleTimeoutMs || 30000,
       min: this.config.min || 2,
@@ -290,6 +315,86 @@ export class DatabaseConnection {
       clearInterval(this.healthCheckInterval);
       this.healthCheckInterval = null;
     }
+  }
+
+  /**
+   * Build secure SSL configuration from config options
+   *
+   * SECURITY: By default, certificate verification is ENABLED.
+   * Only disable rejectUnauthorized for development/testing with explicit config.
+   */
+  private buildSSLConfig(
+    sslConfig: boolean | SSLConfig | undefined
+  ): boolean | tls.ConnectionOptions {
+    // If SSL is explicitly disabled
+    if (sslConfig === false) {
+      return false;
+    }
+
+    // If SSL is not configured, default based on environment
+    if (sslConfig === undefined) {
+      // Enable SSL with certificate verification in production
+      const isProduction = process.env.NODE_ENV === 'production';
+      return isProduction ? { rejectUnauthorized: true } : false;
+    }
+
+    // Simple boolean true - enable with verification
+    if (sslConfig === true) {
+      return { rejectUnauthorized: true };
+    }
+
+    // Detailed SSL config object
+    const tlsOptions: tls.ConnectionOptions = {};
+
+    // SECURITY: Default to rejecting unauthorized certs
+    // Only set false if explicitly configured (for development only)
+    if (sslConfig.rejectUnauthorized === false) {
+      console.warn(
+        '\x1b[33m[SECURITY WARNING]\x1b[0m SSL certificate verification is disabled. ' +
+        'This exposes the connection to man-in-the-middle attacks. ' +
+        'Only use this setting for development/testing environments.'
+      );
+      tlsOptions.rejectUnauthorized = false;
+    } else {
+      tlsOptions.rejectUnauthorized = true;
+    }
+
+    // Load CA certificate if provided
+    if (sslConfig.ca) {
+      try {
+        tlsOptions.ca = fs.readFileSync(sslConfig.ca);
+      } catch (error) {
+        console.error(`Failed to load CA certificate from ${sslConfig.ca}:`, error);
+        throw new Error(`Failed to load CA certificate: ${(error as Error).message}`);
+      }
+    }
+
+    // Load client certificate if provided
+    if (sslConfig.cert) {
+      try {
+        tlsOptions.cert = fs.readFileSync(sslConfig.cert);
+      } catch (error) {
+        console.error(`Failed to load client certificate from ${sslConfig.cert}:`, error);
+        throw new Error(`Failed to load client certificate: ${(error as Error).message}`);
+      }
+    }
+
+    // Load client key if provided
+    if (sslConfig.key) {
+      try {
+        tlsOptions.key = fs.readFileSync(sslConfig.key);
+      } catch (error) {
+        console.error(`Failed to load client key from ${sslConfig.key}:`, error);
+        throw new Error(`Failed to load client key: ${(error as Error).message}`);
+      }
+    }
+
+    // Set server name for SNI
+    if (sslConfig.serverName) {
+      tlsOptions.servername = sslConfig.serverName;
+    }
+
+    return tlsOptions;
   }
 
   /**

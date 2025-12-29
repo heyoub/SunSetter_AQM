@@ -5,6 +5,7 @@ import { generateCodeFromDatabase } from './cli/generate.js';
 import { DatabaseConfig } from './config/database.js';
 import { GeneratorOptions } from './generator/code-generator.js';
 import { createMigrateCommand } from './cli/commands/migrate.js';
+import { createSeedExportCommand } from './cli/commands/seed-export.js';
 
 const program = new Command();
 
@@ -17,6 +18,9 @@ program
 
 // Add migrate command (main feature)
 program.addCommand(createMigrateCommand());
+
+// Add seed-export command
+program.addCommand(createSeedExportCommand());
 
 program
   .command('generate')

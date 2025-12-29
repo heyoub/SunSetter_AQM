@@ -119,7 +119,8 @@ const DEFAULTS: Required<MigrationProgressBarConfig> = {
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(0)}MB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / 1024 / 1024).toFixed(0)}MB`;
   return `${(bytes / 1024 / 1024 / 1024).toFixed(1)}GB`;
 }
 
@@ -562,7 +563,10 @@ export class MigrationProgressBar {
       // Calculate throughput display
       let throughputStr = '';
       if (this.config.showThroughput && state.status === 'in_progress') {
-        throughputStr = state.throughput > 0 ? c.gray(`| ${formatNumber(Math.round(state.throughput))} rows/s`) : '';
+        throughputStr =
+          state.throughput > 0
+            ? c.gray(`| ${formatNumber(Math.round(state.throughput))} rows/s`)
+            : '';
       }
 
       // Calculate ETA display
@@ -575,7 +579,11 @@ export class MigrationProgressBar {
 
       // Batch display
       let batchStr = '';
-      if (this.config.showBatchNumber && state.batchNumber > 0 && state.status === 'in_progress') {
+      if (
+        this.config.showBatchNumber &&
+        state.batchNumber > 0 &&
+        state.status === 'in_progress'
+      ) {
         batchStr = c.gray(`| batch ${state.batchNumber}`);
       }
 
@@ -598,7 +606,8 @@ export class MigrationProgressBar {
     const c = this.config.colors ? chalk : this.noColorChalk();
     const totalTables = this.tables.size;
     const completedTables = this.getTableCounts().completed;
-    const percent = totalTables > 0 ? Math.round((completedTables / totalTables) * 100) : 0;
+    const percent =
+      totalTables > 0 ? Math.round((completedTables / totalTables) * 100) : 0;
 
     console.log();
     console.log(c.bold.white('  Migration Progress'));
@@ -607,8 +616,11 @@ export class MigrationProgressBar {
     const barWidth = Math.min(40, getTerminalWidth() - 30);
     const filledWidth = Math.round((percent / 100) * barWidth);
     const emptyWidth = barWidth - filledWidth;
-    const progressBar = CHARS.LINE.repeat(filledWidth) + c.gray(CHARS.LINE.repeat(emptyWidth));
-    console.log(`  ${c.cyan(progressBar)} ${percent}% | ${completedTables}/${totalTables} tables`);
+    const progressBar =
+      CHARS.LINE.repeat(filledWidth) + c.gray(CHARS.LINE.repeat(emptyWidth));
+    console.log(
+      `  ${c.cyan(progressBar)} ${percent}% | ${completedTables}/${totalTables} tables`
+    );
     console.log();
   }
 
@@ -619,7 +631,9 @@ export class MigrationProgressBar {
       const memUsage = formatBytes(this.getMemoryUsage());
       const elapsed = formatDuration(this.getElapsedTime());
       // Using stderr to avoid interfering with progress bars
-      process.stderr.write(`\r  Memory: ${memUsage} | Elapsed: ${elapsed}      `);
+      process.stderr.write(
+        `\r  Memory: ${memUsage} | Elapsed: ${elapsed}      `
+      );
     }
   }
 
@@ -633,15 +647,22 @@ export class MigrationProgressBar {
     console.log();
 
     // Overall status bar
-    const percent = counts.total > 0 ? Math.round((counts.completed / counts.total) * 100) : 0;
+    const percent =
+      counts.total > 0
+        ? Math.round((counts.completed / counts.total) * 100)
+        : 0;
     const barWidth = Math.min(40, getTerminalWidth() - 30);
     const filledWidth = Math.round((percent / 100) * barWidth);
     const emptyWidth = barWidth - filledWidth;
-    const barColor = success ? c.green : (counts.error > 0 ? c.red : c.yellow);
-    const progressBar = barColor(CHARS.LINE.repeat(filledWidth)) + c.gray(CHARS.LINE.repeat(emptyWidth));
+    const barColor = success ? c.green : counts.error > 0 ? c.red : c.yellow;
+    const progressBar =
+      barColor(CHARS.LINE.repeat(filledWidth)) +
+      c.gray(CHARS.LINE.repeat(emptyWidth));
 
     console.log(c.bold.white('  Migration Progress'));
-    console.log(`  ${progressBar} ${percent}% | ${counts.completed}/${counts.total} tables`);
+    console.log(
+      `  ${progressBar} ${percent}% | ${counts.completed}/${counts.total} tables`
+    );
     console.log();
 
     // Table summary
@@ -669,11 +690,21 @@ export class MigrationProgressBar {
       }
 
       const rowInfo = `${formatNumber(state.current)}/${formatNumber(state.total)} rows`;
-      const durationInfo = state.duration !== undefined ? ` | ${formatDuration(state.duration)}` : '';
+      const durationInfo =
+        state.duration !== undefined
+          ? ` | ${formatDuration(state.duration)}`
+          : '';
       const paddedName = this.padTableName(tableName);
-      const barStr = this.renderMiniBar(state.current, state.total, this.config.barWidth, state.status);
+      const barStr = this.renderMiniBar(
+        state.current,
+        state.total,
+        this.config.barWidth,
+        state.status
+      );
 
-      console.log(`  ${statusColor(statusIcon)} ${c.white(paddedName)} ${barStr} ${c.gray(rowInfo)}${c.gray(durationInfo)}`);
+      console.log(
+        `  ${statusColor(statusIcon)} ${c.white(paddedName)} ${barStr} ${c.gray(rowInfo)}${c.gray(durationInfo)}`
+      );
 
       if (state.status === 'error' && state.errorMessage) {
         console.log(c.red(`    Error: ${state.errorMessage}`));
@@ -685,7 +716,12 @@ export class MigrationProgressBar {
     console.log();
   }
 
-  private renderMiniBar(current: number, total: number, width: number, status: TableStatus): string {
+  private renderMiniBar(
+    current: number,
+    total: number,
+    width: number,
+    status: TableStatus
+  ): string {
     const c = this.config.colors ? chalk : this.noColorChalk();
     const percent = total > 0 ? current / total : 0;
     const filledWidth = Math.round(percent * width);
@@ -708,14 +744,19 @@ export class MigrationProgressBar {
 
     const filled = barColor(CHARS.BAR_FILLED.repeat(filledWidth));
     const empty = c.gray(CHARS.BAR_EMPTY.repeat(emptyWidth));
-    const percentStr = Math.round(percent * 100).toString().padStart(3, ' ');
+    const percentStr = Math.round(percent * 100)
+      .toString()
+      .padStart(3, ' ');
 
     return `[${filled}${empty}] ${c.white(percentStr)}%`;
   }
 
   private padTableName(name: string): string {
     // Calculate max table name length for alignment
-    const maxLen = Math.max(...Array.from(this.tables.keys()).map((n) => n.length), 10);
+    const maxLen = Math.max(
+      ...Array.from(this.tables.keys()).map((n) => n.length),
+      10
+    );
     return name.padEnd(maxLen);
   }
 
@@ -729,7 +770,10 @@ export class MigrationProgressBar {
 
   private logNonInteractiveStart(): void {
     const c = this.config.colors ? chalk : this.noColorChalk();
-    const totalRows = Array.from(this.tables.values()).reduce((sum, t) => sum + t.total, 0);
+    const totalRows = Array.from(this.tables.values()).reduce(
+      (sum, t) => sum + t.total,
+      0
+    );
 
     console.log();
     console.log(c.bold.white('  Migration Progress'));
@@ -739,32 +783,47 @@ export class MigrationProgressBar {
     console.log();
   }
 
-  private logNonInteractiveProgress(table: string, state: TableProgressState): void {
+  private logNonInteractiveProgress(
+    table: string,
+    state: TableProgressState
+  ): void {
     // Log at 10%, 25%, 50%, 75%, 90%, 100%
-    const percent = state.total > 0 ? Math.round((state.current / state.total) * 100) : 0;
+    const percent =
+      state.total > 0 ? Math.round((state.current / state.total) * 100) : 0;
     const milestones = [10, 25, 50, 75, 90, 100];
 
     // Find if we just crossed a milestone
     const previousPercent =
-      state.total > 0 ? Math.round(((state.current - 1) / state.total) * 100) : 0;
+      state.total > 0
+        ? Math.round(((state.current - 1) / state.total) * 100)
+        : 0;
 
     for (const milestone of milestones) {
       if (previousPercent < milestone && percent >= milestone) {
         const c = this.config.colors ? chalk : this.noColorChalk();
         const throughputStr =
-          state.throughput > 0 ? ` | ${formatNumber(Math.round(state.throughput))} rows/s` : '';
+          state.throughput > 0
+            ? ` | ${formatNumber(Math.round(state.throughput))} rows/s`
+            : '';
         console.log(
-          c.gray(`  [${table}] ${percent}% - ${formatNumber(state.current)}/${formatNumber(state.total)} rows${throughputStr}`)
+          c.gray(
+            `  [${table}] ${percent}% - ${formatNumber(state.current)}/${formatNumber(state.total)} rows${throughputStr}`
+          )
         );
         break;
       }
     }
   }
 
-  private logNonInteractiveComplete(table: string, state: TableProgressState, success: boolean): void {
+  private logNonInteractiveComplete(
+    table: string,
+    state: TableProgressState,
+    success: boolean
+  ): void {
     const c = this.config.colors ? chalk : this.noColorChalk();
     const statusStr = success ? c.green('DONE') : c.red('FAIL');
-    const durationStr = state.duration !== undefined ? formatDuration(state.duration) : '--';
+    const durationStr =
+      state.duration !== undefined ? formatDuration(state.duration) : '--';
     const rowsStr = `${formatNumber(state.current)}/${formatNumber(state.total)} rows`;
 
     console.log(`  ${statusStr} ${table}: ${rowsStr} | ${durationStr}`);
@@ -792,7 +851,9 @@ export class MigrationProgressBar {
     }
 
     console.log(`  Tables completed: ${counts.completed}/${counts.total}`);
-    console.log(`  Rows migrated: ${formatNumber(migratedRows)}/${formatNumber(totalRows)}`);
+    console.log(
+      `  Rows migrated: ${formatNumber(migratedRows)}/${formatNumber(totalRows)}`
+    );
     if (counts.error > 0) {
       console.log(c.red(`  Errors: ${counts.error} table(s) failed`));
     }

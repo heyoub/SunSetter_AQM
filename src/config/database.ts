@@ -351,8 +351,8 @@ export class DatabaseConnection {
     if (sslConfig.rejectUnauthorized === false) {
       console.warn(
         '\x1b[33m[SECURITY WARNING]\x1b[0m SSL certificate verification is disabled. ' +
-        'This exposes the connection to man-in-the-middle attacks. ' +
-        'Only use this setting for development/testing environments.'
+          'This exposes the connection to man-in-the-middle attacks. ' +
+          'Only use this setting for development/testing environments.'
       );
       tlsOptions.rejectUnauthorized = false;
     } else {
@@ -364,8 +364,13 @@ export class DatabaseConnection {
       try {
         tlsOptions.ca = fs.readFileSync(sslConfig.ca);
       } catch (error) {
-        console.error(`Failed to load CA certificate from ${sslConfig.ca}:`, error);
-        throw new Error(`Failed to load CA certificate: ${(error as Error).message}`);
+        console.error(
+          `Failed to load CA certificate from ${sslConfig.ca}:`,
+          error
+        );
+        throw new Error(
+          `Failed to load CA certificate: ${(error as Error).message}`
+        );
       }
     }
 
@@ -374,8 +379,13 @@ export class DatabaseConnection {
       try {
         tlsOptions.cert = fs.readFileSync(sslConfig.cert);
       } catch (error) {
-        console.error(`Failed to load client certificate from ${sslConfig.cert}:`, error);
-        throw new Error(`Failed to load client certificate: ${(error as Error).message}`);
+        console.error(
+          `Failed to load client certificate from ${sslConfig.cert}:`,
+          error
+        );
+        throw new Error(
+          `Failed to load client certificate: ${(error as Error).message}`
+        );
       }
     }
 
@@ -384,8 +394,13 @@ export class DatabaseConnection {
       try {
         tlsOptions.key = fs.readFileSync(sslConfig.key);
       } catch (error) {
-        console.error(`Failed to load client key from ${sslConfig.key}:`, error);
-        throw new Error(`Failed to load client key: ${(error as Error).message}`);
+        console.error(
+          `Failed to load client key from ${sslConfig.key}:`,
+          error
+        );
+        throw new Error(
+          `Failed to load client key: ${(error as Error).message}`
+        );
       }
     }
 

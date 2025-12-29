@@ -204,7 +204,8 @@ export class IdMapper implements IIdMapper {
   }): void {
     this.streamingMode = true;
     if (options?.chunkDir) this.chunkDir = options.chunkDir;
-    if (options?.memoryThreshold) this.memoryThreshold = options.memoryThreshold;
+    if (options?.memoryThreshold)
+      this.memoryThreshold = options.memoryThreshold;
     if (options?.chunkSize) this.chunkSize = options.chunkSize;
   }
 

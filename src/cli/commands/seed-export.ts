@@ -68,7 +68,13 @@ interface AnonymizerConfig {
  * Default field patterns for PII detection
  */
 const DEFAULT_PII_PATTERNS: AnonymizerConfig = {
-  emailFields: ['email', 'email_address', 'user_email', 'contact_email', 'e_mail'],
+  emailFields: [
+    'email',
+    'email_address',
+    'user_email',
+    'contact_email',
+    'e_mail',
+  ],
   nameFields: [
     'name',
     'first_name',
@@ -244,7 +250,9 @@ function toPascalCase(str: string): string {
  */
 function matchesPiiPattern(columnName: string, patterns: string[]): boolean {
   const lowerName = columnName.toLowerCase();
-  return patterns.some((pattern) => lowerName.includes(pattern) || lowerName === pattern);
+  return patterns.some(
+    (pattern) => lowerName.includes(pattern) || lowerName === pattern
+  );
 }
 
 /**
@@ -269,8 +277,25 @@ function seededRandom(seed: string): () => number {
  */
 function generateFakeEmail(seed: string): string {
   const random = seededRandom(seed);
-  const firstNames = ['john', 'jane', 'bob', 'alice', 'charlie', 'diana', 'eve', 'frank'];
-  const lastNames = ['smith', 'doe', 'johnson', 'williams', 'brown', 'jones', 'miller'];
+  const firstNames = [
+    'john',
+    'jane',
+    'bob',
+    'alice',
+    'charlie',
+    'diana',
+    'eve',
+    'frank',
+  ];
+  const lastNames = [
+    'smith',
+    'doe',
+    'johnson',
+    'williams',
+    'brown',
+    'jones',
+    'miller',
+  ];
   const domains = ['example.com', 'test.com', 'demo.org', 'sample.net'];
 
   const firstName = firstNames[Math.floor(random() * firstNames.length)];
@@ -284,10 +309,32 @@ function generateFakeEmail(seed: string): string {
 /**
  * Generate a fake name based on seed
  */
-function generateFakeName(seed: string, isFirstName: boolean = false, isLastName: boolean = false): string {
+function generateFakeName(
+  seed: string,
+  isFirstName: boolean = false,
+  isLastName: boolean = false
+): string {
   const random = seededRandom(seed);
-  const firstNames = ['John', 'Jane', 'Robert', 'Alice', 'Charles', 'Diana', 'Edward', 'Fiona'];
-  const lastNames = ['Smith', 'Doe', 'Johnson', 'Williams', 'Brown', 'Jones', 'Miller', 'Davis'];
+  const firstNames = [
+    'John',
+    'Jane',
+    'Robert',
+    'Alice',
+    'Charles',
+    'Diana',
+    'Edward',
+    'Fiona',
+  ];
+  const lastNames = [
+    'Smith',
+    'Doe',
+    'Johnson',
+    'Williams',
+    'Brown',
+    'Jones',
+    'Miller',
+    'Davis',
+  ];
 
   const firstName = firstNames[Math.floor(random() * firstNames.length)];
   const lastName = lastNames[Math.floor(random() * lastNames.length)];
@@ -318,11 +365,25 @@ function generateFakeAddress(seed: string, columnName: string): string {
 
   if (lowerName.includes('street') || lowerName === 'address') {
     const numbers = Math.floor(random() * 9999) + 1;
-    const streets = ['Main St', 'Oak Ave', 'Maple Dr', 'Cedar Ln', 'Pine Rd', 'Elm Blvd'];
+    const streets = [
+      'Main St',
+      'Oak Ave',
+      'Maple Dr',
+      'Cedar Ln',
+      'Pine Rd',
+      'Elm Blvd',
+    ];
     return `${numbers} ${streets[Math.floor(random() * streets.length)]}`;
   }
   if (lowerName.includes('city')) {
-    const cities = ['Springfield', 'Riverside', 'Fairview', 'Greenville', 'Franklin', 'Clinton'];
+    const cities = [
+      'Springfield',
+      'Riverside',
+      'Fairview',
+      'Greenville',
+      'Franklin',
+      'Clinton',
+    ];
     return cities[Math.floor(random() * cities.length)];
   }
   if (lowerName.includes('state')) {
@@ -333,7 +394,12 @@ function generateFakeAddress(seed: string, columnName: string): string {
     return String(Math.floor(random() * 90000) + 10000);
   }
   if (lowerName.includes('country')) {
-    const countries = ['United States', 'Canada', 'United Kingdom', 'Australia'];
+    const countries = [
+      'United States',
+      'Canada',
+      'United Kingdom',
+      'Australia',
+    ];
     return countries[Math.floor(random() * countries.length)];
   }
 
@@ -413,8 +479,17 @@ function transformRow(
     }
 
     // Apply anonymization if enabled
-    if (shouldAnonymize && transformedValue !== null && transformedValue !== undefined) {
-      transformedValue = anonymizeValue(transformedValue, column.columnName, rowId, piiConfig);
+    if (
+      shouldAnonymize &&
+      transformedValue !== null &&
+      transformedValue !== undefined
+    ) {
+      transformedValue = anonymizeValue(
+        transformedValue,
+        column.columnName,
+        rowId,
+        piiConfig
+      );
     }
 
     transformed[camelKey] = transformedValue;
@@ -549,7 +624,9 @@ export const clearAll = mutation({
     let deleted = 0;
 ${tableNames
   .map(
-    (name) => `    const ${toCamelCase(name)}Docs = await ctx.db.query("${name}").collect();
+    (
+      name
+    ) => `    const ${toCamelCase(name)}Docs = await ctx.db.query("${name}").collect();
     for (const doc of ${toCamelCase(name)}Docs) {
       await ctx.db.delete(doc._id);
       deleted++;
@@ -572,7 +649,10 @@ function generateSeedReadme(
   rowCount: Record<string, number>
 ): string {
   const tableList = tableNames
-    .map((name) => `- \`${name}.${format === 'ts' ? 'json' : format}\` - ${rowCount[name] || 0} rows`)
+    .map(
+      (name) =>
+        `- \`${name}.${format === 'ts' ? 'json' : format}\` - ${rowCount[name] || 0} rows`
+    )
     .join('\n');
 
   return `# Convex Seed Data
@@ -742,26 +822,15 @@ ${chalk.bold('Sampling:')}
       'Output directory for seed files',
       './convex/seed'
     )
-    .option(
-      '-f, --format <format>',
-      'Output format: jsonl, json, ts',
-      'jsonl'
-    )
+    .option('-f, --format <format>', 'Output format: jsonl, json, ts', 'jsonl')
 
     // Data options
-    .option(
-      '-l, --limit <number>',
-      'Maximum rows per table (1-100000)',
-      '1000'
-    )
+    .option('-l, --limit <number>', 'Maximum rows per table (1-100000)', '1000')
     .option(
       '-a, --anonymize',
       'Anonymize PII fields (emails, names, phones, addresses)'
     )
-    .option(
-      '-s, --sample',
-      'Random sample instead of first N rows'
-    )
+    .option('-s, --sample', 'Random sample instead of first N rows')
 
     // Logging options
     .option('-v, --verbose', 'Enable verbose output')
@@ -848,7 +917,12 @@ async function runSeedExportCommand(options: SeedExportOptions): Promise<void> {
         throw new ConfigurationError(
           `None of the specified tables were found: ${tableList.join(', ')}`,
           ERROR_CODES.TABLE_NOT_FOUND,
-          { details: { requested: tableList, available: schema.tables.map((t: TableInfo) => t.tableName) } }
+          {
+            details: {
+              requested: tableList,
+              available: schema.tables.map((t: TableInfo) => t.tableName),
+            },
+          }
         );
       }
     }
@@ -927,14 +1001,17 @@ async function runSeedExportCommand(options: SeedExportOptions): Promise<void> {
     await pool.end();
 
     // Print summary
-    const totalRows = Object.values(rowCounts).reduce((sum, count) => sum + count, 0);
+    const totalRows = Object.values(rowCounts).reduce(
+      (sum, count) => sum + count,
+      0
+    );
     reporter.printSummary({
       'Tables exported': exportedTables.length,
       'Total rows': totalRows,
       'Output directory': outputDir,
-      'Format': format.toUpperCase(),
-      'Anonymized': shouldAnonymize ? 'Yes' : 'No',
-      'Sampled': shouldSample ? 'Yes' : 'No',
+      Format: format.toUpperCase(),
+      Anonymized: shouldAnonymize ? 'Yes' : 'No',
+      Sampled: shouldSample ? 'Yes' : 'No',
     });
 
     // Print files generated
@@ -952,7 +1029,10 @@ async function runSeedExportCommand(options: SeedExportOptions): Promise<void> {
         'success'
       );
     } else {
-      reporter.box('No tables were exported. Check your table selection.', 'warning');
+      reporter.box(
+        'No tables were exported. Check your table selection.',
+        'warning'
+      );
     }
   } catch (error: unknown) {
     if (error instanceof MigrationError) {

@@ -91,7 +91,9 @@ export class CircuitOpenError extends Error {
   public readonly resetAt: Date;
 
   constructor(name: string, openedAt: Date, resetTimeout: number) {
-    super(`Circuit breaker "${name}" is open. Retry after ${Math.ceil(resetTimeout / 1000)}s`);
+    super(
+      `Circuit breaker "${name}" is open. Retry after ${Math.ceil(resetTimeout / 1000)}s`
+    );
     this.name = 'CircuitOpenError';
     this.circuitName = name;
     this.openedAt = openedAt;
@@ -149,11 +151,13 @@ export class CircuitBreaker {
     // Check if circuit is open
     if (this.state === 'OPEN') {
       this.rejectedCalls++;
-      this.emit('rejected', { error: new CircuitOpenError(
-        this.config.name || 'default',
-        this.openedAt!,
-        this.config.resetTimeout
-      )});
+      this.emit('rejected', {
+        error: new CircuitOpenError(
+          this.config.name || 'default',
+          this.openedAt!,
+          this.config.resetTimeout
+        ),
+      });
       throw new CircuitOpenError(
         this.config.name || 'default',
         this.openedAt!,

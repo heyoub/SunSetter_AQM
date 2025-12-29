@@ -53,7 +53,7 @@ export interface PreflightResult {
   tables: TableStats[];
   totalRows: number;
   estimatedDuration: {
-    optimistic: number;  // seconds
+    optimistic: number; // seconds
     realistic: number;
     pessimistic: number;
   };
@@ -80,7 +80,10 @@ export class PreflightChecker {
   private batchSize: number;
   private rateLimit: number;
 
-  constructor(db: DatabaseConnection, options: { batchSize?: number; rateLimit?: number } = {}) {
+  constructor(
+    db: DatabaseConnection,
+    options: { batchSize?: number; rateLimit?: number } = {}
+  ) {
     this.db = db;
     this.batchSize = options.batchSize || 100;
     this.rateLimit = options.rateLimit || 100;
@@ -116,7 +119,10 @@ export class PreflightChecker {
     result.schemaWarnings = this.checkSchemaCompatibility(tables);
 
     // Estimate resource usage
-    result.resourceEstimates = this.estimateResources(result.totalRows, tables.length);
+    result.resourceEstimates = this.estimateResources(
+      result.totalRows,
+      tables.length
+    );
 
     // Generate recommendations
     result.recommendations = this.generateRecommendations(result);
@@ -177,7 +183,9 @@ export class PreflightChecker {
   /**
    * Calculate time estimates for migration
    */
-  private calculateTimeEstimate(totalRows: number): PreflightResult['estimatedDuration'] {
+  private calculateTimeEstimate(
+    totalRows: number
+  ): PreflightResult['estimatedDuration'] {
     // Base calculation: rows / (batchSize * rate limit factor)
     // Assuming each batch takes ~1 second at 100 req/s
     const batchCount = Math.ceil(totalRows / this.batchSize);
@@ -196,7 +204,7 @@ export class PreflightChecker {
    */
   private analyzeCascadeDependencies(tables: TableInfo[]): CascadeWarning[] {
     const warnings: CascadeWarning[] = [];
-    const tableMap = new Map(tables.map(t => [t.tableName, t]));
+    const tableMap = new Map(tables.map((t) => [t.tableName, t]));
 
     for (const table of tables) {
       for (const fk of table.foreignKeys) {
@@ -216,7 +224,7 @@ export class PreflightChecker {
         // Critical: Circular dependencies
         if (targetTable) {
           const reverseFK = targetTable.foreignKeys.find(
-            rfk => rfk.referencedTable === table.tableName
+            (rfk) => rfk.referencedTable === table.tableName
           );
           if (reverseFK) {
             warnings.push({
@@ -265,8 +273,21 @@ export class PreflightChecker {
 
       // Check for unsupported column types
       for (const col of table.columns) {
-        const unsupportedTypes = ['xml', 'tsvector', 'tsquery', 'box', 'circle', 'line', 'lseg', 'path', 'polygon', 'point'];
-        if (unsupportedTypes.some(t => col.dataType.toLowerCase().includes(t))) {
+        const unsupportedTypes = [
+          'xml',
+          'tsvector',
+          'tsquery',
+          'box',
+          'circle',
+          'line',
+          'lseg',
+          'path',
+          'polygon',
+          'point',
+        ];
+        if (
+          unsupportedTypes.some((t) => col.dataType.toLowerCase().includes(t))
+        ) {
           warnings.push(
             `Column "${table.tableName}.${col.columnName}" has type "${col.dataType}" which may not convert cleanly to Convex.`
           );
@@ -287,7 +308,10 @@ export class PreflightChecker {
   /**
    * Estimate resource requirements
    */
-  private estimateResources(totalRows: number, tableCount: number): PreflightResult['resourceEstimates'] {
+  private estimateResources(
+    totalRows: number,
+    tableCount: number
+  ): PreflightResult['resourceEstimates'] {
     // Memory: ~1KB per row for ID mapping, plus overhead
     const memoryMB = Math.ceil((totalRows * 1024) / (1024 * 1024)) + 100;
 
@@ -327,7 +351,9 @@ export class PreflightChecker {
     }
 
     // FK recommendations
-    const criticalWarnings = result.cascadeWarnings.filter(w => w.severity === 'critical');
+    const criticalWarnings = result.cascadeWarnings.filter(
+      (w) => w.severity === 'critical'
+    );
     if (criticalWarnings.length > 0) {
       recommendations.push(
         `${criticalWarnings.length} circular dependencies detected. Review migration order carefully.`
@@ -347,7 +373,10 @@ export class PreflightChecker {
   /**
    * Check for migration blockers
    */
-  private checkBlockers(result: PreflightResult, tables: TableInfo[]): string[] {
+  private checkBlockers(
+    result: PreflightResult,
+    tables: TableInfo[]
+  ): string[] {
     const blockers: string[] = [];
 
     // No tables to migrate
@@ -356,9 +385,11 @@ export class PreflightChecker {
     }
 
     // Unknown row counts (can't estimate)
-    const unknownTables = result.tables.filter(t => t.rowCount === -1);
+    const unknownTables = result.tables.filter((t) => t.rowCount === -1);
     if (unknownTables.length === tables.length) {
-      blockers.push('Could not retrieve row counts. Check database permissions.');
+      blockers.push(
+        'Could not retrieve row counts. Check database permissions.'
+      );
     }
 
     return blockers;
@@ -370,7 +401,8 @@ export class PreflightChecker {
   private formatBytes(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes < 1024 * 1024 * 1024)
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   }
 
@@ -403,13 +435,22 @@ export function displayPreflightResults(
   reporter.subsection('Tables to Migrate');
   console.log('');
   console.log(
-    chalk.gray('  Table'.padEnd(30) + 'Rows'.padStart(12) + 'Size'.padStart(12) + 'FKs'.padStart(6))
+    chalk.gray(
+      '  Table'.padEnd(30) +
+        'Rows'.padStart(12) +
+        'Size'.padStart(12) +
+        'FKs'.padStart(6)
+    )
   );
   console.log(chalk.gray('  ' + '─'.repeat(60)));
 
   for (const table of result.tables) {
-    const rowStr = table.rowCount >= 0 ? table.rowCount.toLocaleString() : 'unknown';
-    const fkStr = table.foreignKeyCount > 0 ? chalk.yellow(table.foreignKeyCount.toString()) : '0';
+    const rowStr =
+      table.rowCount >= 0 ? table.rowCount.toLocaleString() : 'unknown';
+    const fkStr =
+      table.foreignKeyCount > 0
+        ? chalk.yellow(table.foreignKeyCount.toString())
+        : '0';
     console.log(
       `  ${table.tableName.padEnd(28)} ${rowStr.padStart(12)} ${table.estimatedSize.padStart(12)} ${fkStr.padStart(6)}`
     );
@@ -429,24 +470,38 @@ export function displayPreflightResults(
     return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
   };
 
-  console.log(`  ${chalk.green('Optimistic:')}   ${formatTime(result.estimatedDuration.optimistic)}`);
-  console.log(`  ${chalk.yellow('Realistic:')}    ${formatTime(result.estimatedDuration.realistic)}`);
-  console.log(`  ${chalk.red('Pessimistic:')}  ${formatTime(result.estimatedDuration.pessimistic)}`);
+  console.log(
+    `  ${chalk.green('Optimistic:')}   ${formatTime(result.estimatedDuration.optimistic)}`
+  );
+  console.log(
+    `  ${chalk.yellow('Realistic:')}    ${formatTime(result.estimatedDuration.realistic)}`
+  );
+  console.log(
+    `  ${chalk.red('Pessimistic:')}  ${formatTime(result.estimatedDuration.pessimistic)}`
+  );
   console.log('');
 
   // Resource estimates
   reporter.subsection('Resource Estimates');
   console.log(`  Memory:     ~${result.resourceEstimates.memoryMB} MB`);
-  console.log(`  Disk:       ~${result.resourceEstimates.diskMB} MB (for state files)`);
-  console.log(`  API Calls:  ~${result.resourceEstimates.apiCalls.toLocaleString()}`);
+  console.log(
+    `  Disk:       ~${result.resourceEstimates.diskMB} MB (for state files)`
+  );
+  console.log(
+    `  API Calls:  ~${result.resourceEstimates.apiCalls.toLocaleString()}`
+  );
   console.log('');
 
   // CASCADE warnings
   if (result.cascadeWarnings.length > 0) {
     reporter.subsection('Foreign Key Warnings');
-    const critical = result.cascadeWarnings.filter(w => w.severity === 'critical');
-    const warnings = result.cascadeWarnings.filter(w => w.severity === 'warning');
-    const info = result.cascadeWarnings.filter(w => w.severity === 'info');
+    const critical = result.cascadeWarnings.filter(
+      (w) => w.severity === 'critical'
+    );
+    const warnings = result.cascadeWarnings.filter(
+      (w) => w.severity === 'warning'
+    );
+    const info = result.cascadeWarnings.filter((w) => w.severity === 'info');
 
     if (critical.length > 0) {
       console.log(chalk.red(`  ⚠ ${critical.length} critical issue(s):`));
@@ -459,12 +514,22 @@ export function displayPreflightResults(
     }
 
     if (warnings.length > 0) {
-      console.log(chalk.yellow(`  ⚡ ${warnings.length} foreign key relationship(s) detected`));
-      console.log(chalk.gray(`    Convex does not enforce CASCADE. Implement in mutations.`));
+      console.log(
+        chalk.yellow(
+          `  ⚡ ${warnings.length} foreign key relationship(s) detected`
+        )
+      );
+      console.log(
+        chalk.gray(
+          `    Convex does not enforce CASCADE. Implement in mutations.`
+        )
+      );
     }
 
     if (info.length > 0) {
-      console.log(chalk.blue(`  ℹ ${info.length} reference(s) to external tables`));
+      console.log(
+        chalk.blue(`  ℹ ${info.length} reference(s) to external tables`)
+      );
     }
     console.log('');
   }
@@ -476,7 +541,9 @@ export function displayPreflightResults(
       console.log(chalk.yellow(`  ⚠ ${warning}`));
     }
     if (result.schemaWarnings.length > 5) {
-      console.log(chalk.gray(`  ... and ${result.schemaWarnings.length - 5} more`));
+      console.log(
+        chalk.gray(`  ... and ${result.schemaWarnings.length - 5} more`)
+      );
     }
     console.log('');
   }
@@ -501,9 +568,15 @@ export function displayPreflightResults(
 
   // Final verdict
   if (result.valid) {
-    console.log(chalk.green.bold('  ✓ Pre-flight check passed. Ready to migrate.'));
+    console.log(
+      chalk.green.bold('  ✓ Pre-flight check passed. Ready to migrate.')
+    );
   } else {
-    console.log(chalk.red.bold('  ✖ Pre-flight check failed. Address blockers before proceeding.'));
+    console.log(
+      chalk.red.bold(
+        '  ✖ Pre-flight check failed. Address blockers before proceeding.'
+      )
+    );
   }
   console.log('');
 }

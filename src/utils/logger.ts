@@ -135,10 +135,13 @@ const migrationRotateTransport = new DailyRotateFile({
 });
 
 // Handle rotation events
-combinedRotateTransport.on('rotate', (oldFilename: string, newFilename: string) => {
-  // Optionally notify on rotation
-  console.log(`Log rotated: ${oldFilename} -> ${newFilename}`);
-});
+combinedRotateTransport.on(
+  'rotate',
+  (oldFilename: string, newFilename: string) => {
+    // Optionally notify on rotation
+    console.log(`Log rotated: ${oldFilename} -> ${newFilename}`);
+  }
+);
 
 errorRotateTransport.on('error', (error: Error) => {
   console.error('Error writing to error log:', error);
@@ -291,7 +294,7 @@ export async function flushLogs(): Promise<void> {
       }
     };
 
-    for (const transport of transports) {
+    for (const _transport of transports) {
       // DailyRotateFile doesn't have a flush method, so we just resolve immediately
       // In practice, logs are written synchronously to the stream
       setImmediate(checkComplete);

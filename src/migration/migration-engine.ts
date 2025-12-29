@@ -13,10 +13,11 @@
  * - Optimized connection pooling
  */
 
-import { Pool } from 'pg';
 import type { TableInfo } from '../introspector/schema-introspector.js';
 import { SchemaIntrospector } from '../introspector/schema-introspector.js';
 import { DatabaseConnection } from '../config/database.js';
+import { createAdapter, parseConnectionString } from '../adapters/index.js';
+import type { DatabaseAdapter } from '../adapters/index.js';
 import type {
   MigrationConfig,
   MigrationState,
@@ -74,10 +75,16 @@ class MockConvexClient implements IConvexClient {
     return `mock_${Date.now()}`;
   }
   async batchInsert(
-    tableName: string,
+    _tableName: string,
     documents: ConvexDocument[]
   ): Promise<ConvexId[]> {
     return documents.map((_, i) => `mock_${Date.now()}_${i}`);
+  }
+  async delete(): Promise<void> {
+    // Mock - do nothing
+  }
+  async batchDelete(_tableName: string, documentIds: ConvexId[]): Promise<number> {
+    return documentIds.length; // Mock - pretend we deleted them
   }
   async truncateTable(): Promise<number> {
     return 0;
@@ -149,10 +156,101 @@ export class ConvexHttpClient implements IConvexClient {
     return result.value;
   }
 
+  /**
+   * Delete a single document by ID
+   * Calls the generated `remove` mutation
+   */
+  async delete(tableName: string, documentId: ConvexId): Promise<void> {
+    const response = await fetch(`${this.url}/api/mutation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.deployKey}`,
+      },
+      body: JSON.stringify({
+        path: `${tableName}:remove`,
+        args: { id: documentId },
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Convex delete failed: ${error}`);
+    }
+  }
+
+  /**
+   * Delete multiple documents by ID
+   * Calls the generated `batchRemove` mutation
+   */
+  async batchDelete(tableName: string, documentIds: ConvexId[]): Promise<number> {
+    if (documentIds.length === 0) return 0;
+
+    const response = await fetch(`${this.url}/api/mutation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.deployKey}`,
+      },
+      body: JSON.stringify({
+        path: `${tableName}:batchRemove`,
+        args: { ids: documentIds },
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Convex batch delete failed: ${error}`);
+    }
+
+    const result = (await response.json()) as { value?: number };
+    return result.value ?? documentIds.length;
+  }
+
+  /**
+   * Delete all documents in a table
+   * Queries all document IDs then batch deletes in chunks
+   */
   async truncateTable(tableName: string): Promise<number> {
-    // Note: Convex doesn't have a native truncate, would need custom mutation
-    console.warn(`truncateTable for ${tableName} not implemented`);
-    return 0;
+    // First, get all document IDs
+    const response = await fetch(`${this.url}/api/query`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.deployKey}`,
+      },
+      body: JSON.stringify({
+        path: `${tableName}:listAll`,
+        args: {},
+      }),
+    });
+
+    if (!response.ok) {
+      // If listAll doesn't exist, we can't truncate
+      console.warn(
+        `truncateTable for ${tableName}: listAll query not found. ` +
+        `Generate queries with --include-list-all flag.`
+      );
+      return 0;
+    }
+
+    const result = (await response.json()) as { value?: { _id: ConvexId }[] };
+    const documents = result.value || [];
+
+    if (documents.length === 0) return 0;
+
+    // Batch delete in chunks of 100
+    const CHUNK_SIZE = 100;
+    let totalDeleted = 0;
+
+    for (let i = 0; i < documents.length; i += CHUNK_SIZE) {
+      const chunk = documents.slice(i, i + CHUNK_SIZE);
+      const ids = chunk.map((doc) => doc._id);
+      const deleted = await this.batchDelete(tableName, ids);
+      totalDeleted += deleted;
+    }
+
+    return totalDeleted;
   }
 
   async countDocuments(tableName: string): Promise<number> {
@@ -196,7 +294,7 @@ export class ConvexHttpClient implements IConvexClient {
 export class MigrationEngine {
   private config: MigrationConfig;
   private extendedConfig: ExtendedMigrationConfig;
-  private pool: Pool | null;
+  private adapter: DatabaseAdapter | null;
   private convexClient: IConvexClient;
   private idMapper: IdMapper;
   private stateManager: MigrationStateManager;
@@ -253,7 +351,7 @@ export class MigrationEngine {
       trackExistingDocuments: config.rollback?.trackExistingDocuments ?? false,
     };
 
-    this.pool = null;
+    this.adapter = null;
     this.tableMigrator = null;
     this.parallelMigrator = null;
     this.eventHandlers = [];
@@ -313,25 +411,29 @@ export class MigrationEngine {
 
   /**
    * Initialize database connection
+   *
+   * Creates the appropriate database adapter based on the connection string,
+   * supporting PostgreSQL, MySQL, SQLite, and SQL Server.
    */
   async initialize(): Promise<void> {
-    // Connect to PostgreSQL
-    this.pool = new Pool({
-      connectionString: this.config.connectionString,
-    });
+    // Parse connection string to determine database type and create adapter
+    const dbConfig = parseConnectionString(this.config.connectionString);
+    this.adapter = createAdapter(dbConfig);
 
-    // Test connection
+    // Connect to database
     try {
-      await this.pool.query('SELECT 1');
+      await this.adapter.connect();
+      // Test connection
+      await this.adapter.testConnection();
     } catch (error: unknown) {
       throw new Error(
-        `Failed to connect to PostgreSQL: ${(error as Error).message}`
+        `Failed to connect to ${dbConfig.type}: ${(error as Error).message}`
       );
     }
 
-    // Initialize table migrator
+    // Initialize table migrator with adapter
     this.tableMigrator = new TableMigrator(
-      this.pool,
+      this.adapter,
       this.convexClient,
       this.idMapper,
       this.transformer,
@@ -356,7 +458,7 @@ export class MigrationEngine {
    * Supports single schema (default) or multi-schema introspection
    */
   async introspect(): Promise<TableInfo[]> {
-    if (!this.pool) {
+    if (!this.adapter) {
       throw new Error('Not initialized. Call initialize() first.');
     }
 
@@ -417,7 +519,7 @@ export class MigrationEngine {
    * Introspect multiple schemas
    */
   async introspectSchemas(schemas: string[]): Promise<TableInfo[]> {
-    if (!this.pool) {
+    if (!this.adapter) {
       throw new Error('Not initialized. Call initialize() first.');
     }
 
@@ -704,7 +806,7 @@ export class MigrationEngine {
         this.extendedConfig.parallel?.maxParallelTables ?? 4;
 
       this.parallelMigrator = new ParallelMigrator(
-        this.pool!,
+        this.adapter!,
         this.convexClient,
         this.idMapper,
         this.transformer,
@@ -740,12 +842,11 @@ export class MigrationEngine {
    * Get row count for a table
    */
   private async getTableRowCount(tableName: string): Promise<number> {
-    if (!this.pool) return 0;
+    if (!this.adapter) return 0;
     try {
-      const result = await this.pool.query(
-        `SELECT COUNT(*) as count FROM "${tableName}"`
-      );
-      return parseInt(result.rows[0].count, 10);
+      // Use first schema from multi-schema config or default to 'public'
+      const schema = this.multiSchemaConfig.schemas[0] || 'public';
+      return await this.adapter.getTableRowCount(schema, tableName);
     } catch {
       return 0;
     }
@@ -753,33 +854,29 @@ export class MigrationEngine {
 
   /**
    * Rollback the migration
-   * Deletes all migrated documents from Convex
+   * Deletes all migrated documents from Convex using generated mutations
    */
   async rollback(options: RollbackOptions = {}): Promise<RollbackResult> {
     // Create a client adapter for the rollback manager
+    // Uses the actual ConvexHttpClient delete methods
     const rollbackClient = {
       delete: async (
         tableName: string,
         documentId: ConvexId
       ): Promise<void> => {
-        // Single delete would need a custom mutation in Convex
-        console.warn(
-          `Single delete for ${tableName}:${documentId} not implemented`
-        );
+        if (options.dryRun) {
+          return; // Don't actually delete in dry run
+        }
+        await this.convexClient.delete(tableName, documentId);
       },
       batchDelete: async (
         tableName: string,
         documentIds: ConvexId[]
       ): Promise<number> => {
-        // Batch delete would need a custom mutation in Convex
-        console.warn(
-          `Batch delete for ${tableName}: ${documentIds.length} documents`
-        );
         if (options.dryRun) {
-          return documentIds.length;
+          return documentIds.length; // Pretend we deleted them
         }
-        // In a real implementation, this would call a Convex mutation
-        return 0;
+        return this.convexClient.batchDelete(tableName, documentIds);
       },
       countDocuments: async (tableName: string): Promise<number> => {
         return this.convexClient.countDocuments(tableName);
@@ -884,7 +981,7 @@ export class MigrationEngine {
   } {
     if (!this.parallelMigrator) {
       this.parallelMigrator = new ParallelMigrator(
-        this.pool!,
+        this.adapter!,
         this.convexClient,
         this.idMapper,
         this.transformer,
@@ -963,37 +1060,31 @@ export class MigrationEngine {
    * Close connections
    */
   async close(): Promise<void> {
-    if (this.pool) {
-      await this.pool.end();
-      this.pool = null;
+    if (this.adapter) {
+      await this.adapter.disconnect();
+      this.adapter = null;
     }
   }
 
   /**
-   * Create a DatabaseConnection wrapper for the pool
+   * Create a DatabaseConnection wrapper for the adapter
    */
   private createDbConnectionWrapper(): DatabaseConnection {
-    const pool = this.pool!;
+    const adapter = this.adapter!;
     return {
-      pool,
-      config: {} as any,
+      pool: null, // Legacy field, not used with adapter pattern
+      config: {} as unknown,
       async testConnection(): Promise<boolean> {
-        try {
-          await pool.query('SELECT 1');
-          return true;
-        } catch {
-          return false;
-        }
+        return adapter.testConnection();
       },
       async close(): Promise<void> {
         // Don't close - managed by MigrationEngine
       },
       getConfig() {
-        return {} as any;
+        return {} as unknown;
       },
       async query<T>(sql: string, params?: unknown[]): Promise<T[]> {
-        const result = await pool.query(sql, params);
-        return result.rows as T[];
+        return adapter.query<T>(sql, params);
       },
     } as unknown as DatabaseConnection;
   }

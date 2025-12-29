@@ -13,6 +13,13 @@ import { Command } from 'commander';
 import { Pool } from 'pg';
 import chalk from 'chalk';
 import {
+  DatabaseType,
+  createAdapter,
+  parseConnectionString,
+  type DatabaseConfig,
+  type DatabaseAdapter,
+} from '../../adapters/index.js';
+import {
   SchemaIntrospector,
   TableInfo,
 } from '../../introspector/schema-introspector.js';
@@ -57,6 +64,7 @@ const SHUTDOWN_TIMEOUT_MS = 30000;
  */
 interface MigrateOptions {
   connection?: string;
+  dbType?: string;
   convexUrl?: string;
   convexKey?: string;
   output?: string;
@@ -129,7 +137,9 @@ function setupSignalHandlers(): void {
             setTimeout(() => reject(new Error('State save timeout')), 10000)
           ),
         ]).catch((error) => {
-          activeReporter?.warn(`State save incomplete: ${(error as Error).message}`);
+          activeReporter?.warn(
+            `State save incomplete: ${(error as Error).message}`
+          );
         });
 
         activeReporter?.info('Database connections closed.');
@@ -293,7 +303,10 @@ function getConnectionString(
     options.connection ||
     process.env.DATABASE_URL ||
     process.env.POSTGRES_URL ||
-    process.env.PG_CONNECTION_STRING;
+    process.env.PG_CONNECTION_STRING ||
+    process.env.MYSQL_URL ||
+    process.env.SQLITE_URL ||
+    process.env.MSSQL_URL;
 
   if (!connectionString) {
     throw new ConfigurationError(
@@ -302,13 +315,110 @@ function getConnectionString(
       {
         details: {
           hint: 'Set DATABASE_URL environment variable or use --connection flag',
-          envVars: ['DATABASE_URL', 'POSTGRES_URL', 'PG_CONNECTION_STRING'],
+          envVars: [
+            'DATABASE_URL',
+            'POSTGRES_URL',
+            'MYSQL_URL',
+            'SQLITE_URL',
+            'MSSQL_URL',
+          ],
         },
       }
     );
   }
 
   return connectionString;
+}
+
+/**
+ * Get database type from options or detect from connection string
+ */
+function getDatabaseType(
+  options: MigrateOptions,
+  connectionString: string,
+  reporter: ProgressReporter
+): DatabaseType {
+  // Explicit --db-type flag takes precedence
+  if (options.dbType) {
+    const typeMap: Record<string, DatabaseType> = {
+      postgresql: DatabaseType.POSTGRESQL,
+      postgres: DatabaseType.POSTGRESQL,
+      pg: DatabaseType.POSTGRESQL,
+      mysql: DatabaseType.MYSQL,
+      mariadb: DatabaseType.MYSQL,
+      sqlite: DatabaseType.SQLITE,
+      sqlite3: DatabaseType.SQLITE,
+      mssql: DatabaseType.MSSQL,
+      sqlserver: DatabaseType.MSSQL,
+    };
+
+    const dbType = typeMap[options.dbType.toLowerCase()];
+    if (!dbType) {
+      throw new ConfigurationError(
+        `Invalid database type: "${options.dbType}"`,
+        ERROR_CODES.CONFIG_INVALID,
+        {
+          details: {
+            validTypes: Object.keys(typeMap),
+            provided: options.dbType,
+          },
+        }
+      );
+    }
+    return dbType;
+  }
+
+  // Try to detect from connection string protocol
+  try {
+    const config = parseConnectionString(connectionString);
+    reporter.debug(`Detected database type: ${config.type}`);
+    return config.type;
+  } catch {
+    // Default to PostgreSQL for backwards compatibility
+    reporter.warn(
+      'Could not detect database type from connection string. Defaulting to PostgreSQL.'
+    );
+    reporter.warn('Use --db-type to specify the database type explicitly.');
+    return DatabaseType.POSTGRESQL;
+  }
+}
+
+/**
+ * Create a database adapter from options
+ * @internal Reserved for future direct adapter creation
+ */
+async function _createDatabaseAdapter(
+  options: MigrateOptions,
+  reporter: ProgressReporter
+): Promise<DatabaseAdapter> {
+  const connectionString = getConnectionString(options, reporter);
+  const dbType = getDatabaseType(options, connectionString, reporter);
+
+  reporter.debug(`Creating ${dbType} adapter`);
+
+  let config: DatabaseConfig;
+
+  try {
+    // Try parsing as a connection string URL
+    config = parseConnectionString(connectionString);
+  } catch {
+    // For non-URL connection strings, build config manually
+    // This handles cases like "host:port/database" format
+    config = {
+      type: dbType,
+      database: connectionString,
+      // For SQLite, the connection string might be a file path
+      filename: dbType === DatabaseType.SQLITE ? connectionString : undefined,
+    };
+  }
+
+  // Ensure type matches what was detected/specified
+  config.type = dbType;
+
+  const adapter = createAdapter(config);
+  await adapter.connect();
+
+  return adapter;
 }
 
 // ============================================================================
@@ -321,11 +431,23 @@ function getConnectionString(
 export function createMigrateCommand(): Command {
   const command = new Command('migrate')
     .description(
-      `Migrate PostgreSQL database to Convex
+      `Migrate SQL database to Convex (PostgreSQL, MySQL, SQLite, SQL Server)
 
 ${chalk.bold('Examples:')}
-  ${chalk.gray('# Generate Convex schema from PostgreSQL')}
+  ${chalk.gray('# PostgreSQL migration')}
   $ convconv migrate --connection "postgresql://user:pass@localhost/db"
+
+  ${chalk.gray('# MySQL migration')}
+  $ convconv migrate --connection "mysql://user:pass@localhost/db"
+
+  ${chalk.gray('# SQLite migration')}
+  $ convconv migrate --connection "sqlite://./mydb.sqlite"
+
+  ${chalk.gray('# SQL Server migration')}
+  $ convconv migrate --connection "mssql://user:pass@localhost/db"
+
+  ${chalk.gray('# Explicit database type')}
+  $ convconv migrate -c "host:port/db" --db-type mysql
 
   ${chalk.gray('# Full migration with data transfer')}
   $ convconv migrate -m schema-and-data --convex-url https://your-app.convex.cloud
@@ -333,14 +455,8 @@ ${chalk.bold('Examples:')}
   ${chalk.gray('# Migrate specific tables only')}
   $ convconv migrate -t users,posts,comments
 
-  ${chalk.gray('# Resume interrupted migration')}
-  $ convconv migrate --resume
-
-  ${chalk.gray('# Dry run to preview changes')}
-  $ convconv migrate --dry-run -v
-
 ${chalk.bold('Environment Variables:')}
-  DATABASE_URL       PostgreSQL connection string
+  DATABASE_URL       Database connection string
   CONVEX_URL         Convex deployment URL
   CONVEX_DEPLOY_KEY  Convex deploy key for data migration
 `
@@ -385,7 +501,12 @@ ${chalk.bold('Parallel Migration:')}
     // Connection options
     .option(
       '-c, --connection <string>',
-      'PostgreSQL connection string',
+      'Database connection string (auto-detects type from protocol)',
+      undefined
+    )
+    .option(
+      '--db-type <type>',
+      'Database type: postgresql, mysql, sqlite, mssql (auto-detected if not specified)',
       undefined
     )
     .option('--convex-url <string>', 'Convex deployment URL', undefined)
@@ -1109,7 +1230,9 @@ async function runRollbackMode(
       return;
     }
 
-    reporter.succeedSpinner(`Found rollback state with ${tableNames.length} tables`);
+    reporter.succeedSpinner(
+      `Found rollback state with ${tableNames.length} tables`
+    );
 
     // Show what will be rolled back
     reporter.subsection('Tables to rollback:');
@@ -1123,7 +1246,10 @@ async function runRollbackMode(
 
     // Parse rollback tables option
     const rollbackTables = options.rollbackTables
-      ? options.rollbackTables.split(',').map((t) => t.trim()).filter(Boolean)
+      ? options.rollbackTables
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean)
       : undefined;
 
     if (rollbackTables && rollbackTables.length > 0) {
@@ -1153,7 +1279,9 @@ async function runRollbackMode(
     // Print results
     reporter.subsection('Rollback Results:');
     for (const tableResult of result.tablesRolledBack) {
-      const status = tableResult.success ? chalk.green('OK') : chalk.red('FAIL');
+      const status = tableResult.success
+        ? chalk.green('OK')
+        : chalk.red('FAIL');
       reporter.log(
         `  ${status} ${tableResult.tableName}: ${tableResult.deletedCount} deleted`
       );
@@ -1166,12 +1294,13 @@ async function runRollbackMode(
     reporter.printSummary({
       Status: result.success ? 'Completed' : 'Partial',
       Duration: `${Math.round(result.duration / 1000)}s`,
-      'Tables rolled back': result.tablesRolledBack.filter((t) => t.success).length,
+      'Tables rolled back': result.tablesRolledBack.filter((t) => t.success)
+        .length,
       'Documents deleted': result.tablesRolledBack.reduce(
         (sum, t) => sum + t.deletedCount,
         0
       ),
-      'Errors': result.errors.length,
+      Errors: result.errors.length,
     });
 
     if (result.success) {

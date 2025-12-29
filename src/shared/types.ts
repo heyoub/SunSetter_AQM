@@ -290,7 +290,13 @@ export interface IConvexClient {
     documents: Record<string, unknown>[]
   ): Promise<ConvexId[]>;
 
-  /** Delete all documents in a table */
+  /** Delete a single document by ID */
+  delete(tableName: string, documentId: ConvexId): Promise<void>;
+
+  /** Delete multiple documents by ID */
+  batchDelete(tableName: string, documentIds: ConvexId[]): Promise<number>;
+
+  /** Delete all documents in a table (calls batchDelete in chunks) */
   truncateTable(tableName: string): Promise<number>;
 
   /** Count documents in a table */

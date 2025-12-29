@@ -5,7 +5,7 @@
  * Builds dependency graph to identify tables that can be migrated concurrently.
  */
 
-import type { Pool } from 'pg';
+import type { DatabaseAdapter } from '../adapters/base.js';
 import type { TableInfo } from '../introspector/schema-introspector.js';
 import type {
   MigrationEventHandler,
@@ -87,7 +87,7 @@ interface DependencyLevel {
  */
 export class ParallelMigrator {
   private config: ParallelMigrationConfig;
-  private pool: Pool;
+  private adapter: DatabaseAdapter;
   private convexClient: IConvexClient;
   private idMapper: IIdMapper;
   private transformer: DataTransformer;
@@ -97,7 +97,7 @@ export class ParallelMigrator {
   private aborted: boolean;
 
   constructor(
-    pool: Pool,
+    adapter: DatabaseAdapter,
     convexClient: IConvexClient,
     idMapper: IIdMapper,
     transformer: DataTransformer,
@@ -105,7 +105,7 @@ export class ParallelMigrator {
     config: Partial<ParallelMigrationConfig> = {}
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.pool = pool;
+    this.adapter = adapter;
     this.convexClient = convexClient;
     this.idMapper = idMapper;
     this.transformer = transformer;
@@ -376,7 +376,7 @@ export class ParallelMigrator {
    */
   private async migrateTable(table: TableInfo): Promise<TableMigrationResult> {
     const migrator = new TableMigrator(
-      this.pool,
+      this.adapter,
       this.convexClient,
       this.idMapper,
       this.transformer,
@@ -580,7 +580,7 @@ export class ParallelMigrator {
  * Factory function to create parallel migrator
  */
 export function createParallelMigrator(
-  pool: Pool,
+  adapter: DatabaseAdapter,
   convexClient: IConvexClient,
   idMapper: IIdMapper,
   transformer: DataTransformer,
@@ -588,7 +588,7 @@ export function createParallelMigrator(
   config: Partial<ParallelMigrationConfig> = {}
 ): ParallelMigrator {
   return new ParallelMigrator(
-    pool,
+    adapter,
     convexClient,
     idMapper,
     transformer,

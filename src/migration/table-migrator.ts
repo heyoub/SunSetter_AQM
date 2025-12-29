@@ -1,17 +1,17 @@
 /**
  * Table Migrator - Production-Quality Implementation
  *
- * Handles migration of a single table from PostgreSQL to Convex with:
- * - Streaming large result sets (cursor-based pagination)
+ * Handles migration of any SQL database table to Convex with:
+ * - Streaming large result sets (cursor-based pagination via adapter)
  * - Optimal memory management with configurable high-water marks
  * - Intelligent batch sizing that respects Convex rate limits
  * - Exponential backoff with jitter for retries
  * - Progress tracking and event emission
  * - Graceful abort handling with checkpoint saving
+ * - Multi-database support (PostgreSQL, MySQL, SQLite, SQL Server)
  */
 
-import type { Pool } from 'pg';
-import { Readable, Transform } from 'stream';
+import type { DatabaseAdapter } from '../adapters/base.js';
 import type { TableInfo } from '../introspector/schema-introspector.js';
 import type {
   PostgresRow,
@@ -107,140 +107,6 @@ interface BatchResult {
 }
 
 // ============================================================================
-// Streaming Infrastructure
-// ============================================================================
-
-/**
- * Creates a readable stream from PostgreSQL cursor
- * Uses cursor-based pagination for memory efficiency
- */
-class PostgresCursorStream extends Readable {
-  private pool: Pool;
-  private tableName: string;
-  private pkColumn: string;
-  private lastId: PostgresId | undefined;
-  private batchSize: number;
-  private ended: boolean = false;
-  private reading: boolean = false;
-
-  constructor(
-    pool: Pool,
-    tableName: string,
-    pkColumn: string,
-    startAfter: PostgresId | undefined,
-    batchSize: number,
-    highWaterMark: number
-  ) {
-    super({ objectMode: true, highWaterMark });
-    this.pool = pool;
-    this.tableName = tableName;
-    this.pkColumn = pkColumn;
-    this.lastId = startAfter;
-    this.batchSize = batchSize;
-  }
-
-  async _read(): Promise<void> {
-    if (this.ended || this.reading) return;
-    this.reading = true;
-
-    try {
-      const rows = await this.fetchBatch();
-
-      if (rows.length === 0) {
-        this.ended = true;
-        this.push(null);
-        return;
-      }
-
-      // Push rows one at a time for backpressure handling
-      for (const row of rows) {
-        const canContinue = this.push(row);
-        if (!canContinue) {
-          break;
-        }
-      }
-
-      // Update cursor for next batch
-      if (rows.length > 0) {
-        this.lastId = rows[rows.length - 1][this.pkColumn] as PostgresId;
-      }
-
-      // If we got fewer rows than batch size, we're done
-      if (rows.length < this.batchSize) {
-        this.ended = true;
-        this.push(null);
-      }
-    } catch (error) {
-      this.destroy(error as Error);
-    } finally {
-      this.reading = false;
-    }
-  }
-
-  private async fetchBatch(): Promise<PostgresRow[]> {
-    let query: string;
-    let params: (PostgresId | number)[];
-
-    if (this.lastId !== undefined) {
-      query = `
-        SELECT * FROM "${this.tableName}"
-        WHERE "${this.pkColumn}" > $1
-        ORDER BY "${this.pkColumn}" ASC
-        LIMIT $2
-      `;
-      params = [this.lastId, this.batchSize];
-    } else {
-      query = `
-        SELECT * FROM "${this.tableName}"
-        ORDER BY "${this.pkColumn}" ASC
-        LIMIT $1
-      `;
-      params = [this.batchSize];
-    }
-
-    const result = await this.pool.query(query, params);
-    return result.rows;
-  }
-}
-
-/**
- * Transform stream that batches rows for insert
- */
-class BatchTransform extends Transform {
-  private batch: PostgresRow[] = [];
-  private batchSize: number;
-
-  constructor(batchSize: number) {
-    super({ objectMode: true });
-    this.batchSize = batchSize;
-  }
-
-  _transform(
-    row: PostgresRow,
-    _encoding: string,
-    callback: (error?: Error | null, data?: PostgresRow[]) => void
-  ): void {
-    this.batch.push(row);
-
-    if (this.batch.length >= this.batchSize) {
-      const batch = this.batch;
-      this.batch = [];
-      callback(null, batch);
-    } else {
-      callback();
-    }
-  }
-
-  _flush(callback: (error?: Error | null, data?: PostgresRow[]) => void): void {
-    if (this.batch.length > 0) {
-      callback(null, this.batch);
-    } else {
-      callback();
-    }
-  }
-}
-
-// ============================================================================
 // Main Table Migrator Class
 // ============================================================================
 
@@ -249,7 +115,7 @@ class BatchTransform extends Transform {
  */
 export class TableMigrator {
   private config: TableMigratorConfig;
-  private pool: Pool;
+  private adapter: DatabaseAdapter;
   private convexClient: IConvexClient;
   private idMapper: IIdMapper;
   private transformer: DataTransformer;
@@ -270,7 +136,7 @@ export class TableMigrator {
   private retriedBatches: number = 0;
 
   constructor(
-    pool: Pool,
+    adapter: DatabaseAdapter,
     convexClient: IConvexClient,
     idMapper: IIdMapper,
     transformer: DataTransformer,
@@ -278,7 +144,7 @@ export class TableMigrator {
     config: Partial<TableMigratorConfig> = {}
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.pool = pool;
+    this.adapter = adapter;
     this.convexClient = convexClient;
     this.idMapper = idMapper;
     this.transformer = transformer;
@@ -334,6 +200,9 @@ export class TableMigrator {
 
   /**
    * Migrate a single table using streaming for memory efficiency
+   *
+   * Uses the database adapter's streamRows() method for cross-database
+   * compatibility (PostgreSQL, MySQL, SQLite, SQL Server).
    */
   async migrate(
     table: TableInfo,
@@ -360,9 +229,15 @@ export class TableMigrator {
     this.aborted = false;
     this.resetMetrics();
 
+    // Use schema from table info, fallback to 'public' for PostgreSQL compatibility
+    const schema = table.schemaName || 'public';
+
     try {
-      // Get total row count for progress tracking
-      result.totalRows = await this.getRowCount(table.tableName);
+      // Get total row count for progress tracking using adapter
+      result.totalRows = await this.adapter.getTableRowCount(
+        schema,
+        table.tableName
+      );
 
       // Emit table start event
       this.emit({
@@ -381,31 +256,20 @@ export class TableMigrator {
       const tableProgress = this.stateManager
         .getCurrentState()
         ?.tables.get(table.tableName);
-      const lastId = tableProgress?.lastProcessedId;
+      const startCursor = tableProgress?.lastProcessedId;
 
       // Calculate optimal batch size based on row estimate
       this.adjustBatchSize(result.totalRows);
 
-      // Process using streaming or batched approach based on table size
-      if (result.totalRows > 10000) {
-        // Use streaming for large tables
-        await this.migrateWithStreaming(
-          table,
-          pkColumn,
-          lastId,
-          options,
-          result
-        );
-      } else {
-        // Use simple batching for smaller tables
-        await this.migrateWithBatching(
-          table,
-          pkColumn,
-          lastId,
-          options,
-          result
-        );
-      }
+      // Process using adapter's streaming for all table sizes
+      await this.migrateWithAdapterStreaming(
+        table,
+        schema,
+        pkColumn,
+        startCursor,
+        options,
+        result
+      );
 
       // Finalize result
       this.finalizeResult(result, startTime);
@@ -432,162 +296,34 @@ export class TableMigrator {
   }
 
   /**
-   * Migrate using streaming for large tables
+   * Migrate using adapter's streamRows() for cross-database compatibility
+   *
+   * Uses cursor-based pagination with the database adapter abstraction,
+   * supporting all database types (PostgreSQL, MySQL, SQLite, SQL Server).
    */
-  private async migrateWithStreaming(
+  private async migrateWithAdapterStreaming(
     table: TableInfo,
+    schema: string,
     pkColumn: string,
-    startAfter: PostgresId | undefined,
+    startCursor: PostgresId | undefined,
     options: TableMigrationOptions,
     result: TableMigrationResult
   ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const stream = new PostgresCursorStream(
-        this.pool,
-        table.tableName,
-        pkColumn,
-        startAfter,
-        this.config.batchSize,
-        this.config.streamHighWaterMark
-      );
-
-      const batcher = new BatchTransform(this.currentBatchSize);
-      let batchNumber = 0;
-      let lastProcessedId: PostgresId | undefined;
-
-      const processBatch = async (rows: PostgresRow[]): Promise<void> => {
-        if (this.aborted) {
-          stream.destroy();
-          return;
-        }
-
-        batchNumber++;
-        this.totalBatches++;
-
-        // Check memory and trigger GC if needed
-        this.checkMemory();
-
-        // Transform rows to documents
-        const {
-          documents,
-          errors: transformErrors,
-          skipped,
-        } = this.transformer.transformBatch(rows, table, options);
-
-        result.skippedRows += skipped;
-        result.errors.push(...transformErrors);
-
-        // Insert batch with retry
-        if (!this.config.dryRun && documents.length > 0) {
-          const batchResult = await this.insertBatchWithRetry(
-            table,
-            rows,
-            documents,
-            options,
-            batchNumber
-          );
-
-          result.migratedRows += batchResult.insertedCount;
-          result.failedRows += batchResult.failedCount;
-          result.errors.push(...batchResult.errors);
-          this.retriedBatches += batchResult.retries > 0 ? 1 : 0;
-
-          // Store ID mappings
-          this.storeIdMappings(
-            table.tableName,
-            rows,
-            batchResult.insertedIdsByIndex,
-            table,
-            options
-          );
-        } else if (this.config.dryRun) {
-          result.migratedRows += documents.length;
-        }
-
-        // Update cursor position
-        if (rows.length > 0) {
-          lastProcessedId = this.transformer.getPrimaryKeyValue(
-            rows[rows.length - 1],
-            table,
-            options
-          ) as PostgresId;
-
-          this.stateManager.recordRowProgress(
-            table.tableName,
-            result.migratedRows,
-            lastProcessedId
-          );
-        }
-
-        // Emit progress event
-        this.emit({
-          type: 'batch:complete',
-          table: table.tableName,
-          batch: batchNumber,
-          data: {
-            processed: rows.length,
-            migrated: result.migratedRows,
-            failed: result.failedRows,
-          },
-        });
-
-        // Rate limiting
-        await this.waitForTokens(documents.length);
-      };
-
-      stream
-        .pipe(batcher)
-        .on('data', async (batch: PostgresRow[]) => {
-          batcher.pause();
-          try {
-            await processBatch(batch);
-          } catch (error) {
-            stream.destroy(error as Error);
-          }
-          batcher.resume();
-        })
-        .on('end', () => {
-          if (!this.aborted) {
-            this.stateManager.completeTable(table.tableName);
-            result.success = result.failedRows === 0;
-          }
-          resolve();
-        })
-        .on('error', (error) => {
-          reject(error);
-        });
-
-      // Handle abort
-      if (this.aborted) {
-        stream.destroy();
-        resolve();
-      }
-    });
-  }
-
-  /**
-   * Migrate using simple batching for smaller tables
-   */
-  private async migrateWithBatching(
-    table: TableInfo,
-    pkColumn: string,
-    startAfter: PostgresId | undefined,
-    options: TableMigrationOptions,
-    result: TableMigrationResult
-  ): Promise<void> {
-    let lastId = startAfter;
     let batchNumber = 0;
     const batchSize = options.batchSize || this.currentBatchSize;
 
-    while (!this.aborted) {
-      // Fetch batch
-      const rows = await this.fetchBatch(
-        table.tableName,
-        pkColumn,
-        lastId,
-        batchSize
-      );
+    // Stream rows using the adapter
+    for await (const batch of this.adapter.streamRows(schema, table.tableName, {
+      batchSize,
+      cursor: startCursor,
+      orderBy: pkColumn,
+      orderDirection: 'ASC',
+    })) {
+      if (this.aborted) {
+        break;
+      }
 
+      const rows = batch.rows as PostgresRow[];
       if (rows.length === 0) {
         break;
       }
@@ -595,17 +331,17 @@ export class TableMigrator {
       batchNumber++;
       this.totalBatches++;
 
-      // Check memory
+      // Check memory and trigger GC if needed
       this.checkMemory();
 
       this.emit({
         type: 'batch:start',
         table: table.tableName,
         batch: batchNumber,
-        data: { rowCount: rows.length },
+        data: { rowCount: rows.length, totalFetched: batch.totalFetched },
       });
 
-      // Transform rows
+      // Transform rows to documents
       const {
         documents,
         errors: transformErrors,
@@ -615,7 +351,7 @@ export class TableMigrator {
       result.skippedRows += skipped;
       result.errors.push(...transformErrors);
 
-      // Insert to Convex
+      // Insert batch with retry
       if (!this.config.dryRun && documents.length > 0) {
         const batchResult = await this.insertBatchWithRetry(
           table,
@@ -642,41 +378,41 @@ export class TableMigrator {
         result.migratedRows += documents.length;
       }
 
-      // Update cursor
+      // Update cursor position for state tracking
       if (rows.length > 0) {
-        lastId = this.transformer.getPrimaryKeyValue(
+        const lastProcessedId = this.transformer.getPrimaryKeyValue(
           rows[rows.length - 1],
           table,
           options
         ) as PostgresId;
+
+        this.stateManager.recordRowProgress(
+          table.tableName,
+          result.migratedRows,
+          lastProcessedId
+        );
       }
 
-      // Update state
-      this.stateManager.recordRowProgress(
-        table.tableName,
-        result.migratedRows,
-        lastId
-      );
-
-      // Emit batch complete
+      // Emit progress event
       this.emit({
         type: 'batch:complete',
         table: table.tableName,
         batch: batchNumber,
         data: {
-          processed: documents.length,
+          processed: rows.length,
           migrated: result.migratedRows,
           failed: result.failedRows,
+          totalFetched: batch.totalFetched,
         },
       });
 
-      // Check if we're done
-      if (rows.length < batchSize) {
-        break;
-      }
-
       // Rate limiting
       await this.waitForTokens(documents.length);
+
+      // Check if this was the last batch
+      if (batch.isLastBatch) {
+        break;
+      }
     }
 
     // Mark complete or aborted
@@ -871,16 +607,6 @@ export class TableMigrator {
   // ==================== HELPER METHODS ====================
 
   /**
-   * Get row count for a table
-   */
-  private async getRowCount(tableName: string): Promise<number> {
-    const result = await this.pool.query(
-      `SELECT COUNT(*) as count FROM "${tableName}"`
-    );
-    return parseInt(result.rows[0].count, 10);
-  }
-
-  /**
    * Get primary key column name
    */
   private getPrimaryKeyColumn(
@@ -912,39 +638,6 @@ export class TableMigrator {
       ERROR_CODES.PRIMARY_KEY_MISSING,
       { details: { table: table.tableName } }
     );
-  }
-
-  /**
-   * Fetch a batch of rows using cursor-based pagination
-   */
-  private async fetchBatch(
-    tableName: string,
-    pkColumn: string,
-    lastId: PostgresId | undefined,
-    batchSize: number
-  ): Promise<PostgresRow[]> {
-    let query: string;
-    let params: (PostgresId | number)[];
-
-    if (lastId !== undefined) {
-      query = `
-        SELECT * FROM "${tableName}"
-        WHERE "${pkColumn}" > $1
-        ORDER BY "${pkColumn}" ASC
-        LIMIT $2
-      `;
-      params = [lastId, batchSize];
-    } else {
-      query = `
-        SELECT * FROM "${tableName}"
-        ORDER BY "${pkColumn}" ASC
-        LIMIT $1
-      `;
-      params = [batchSize];
-    }
-
-    const result = await this.pool.query(query, params);
-    return result.rows;
   }
 
   /**
@@ -1194,10 +887,11 @@ export class TableMigrator {
     table: TableInfo
   ): Promise<{ valid: boolean; issues: string[] }> {
     const issues: string[] = [];
+    const schema = table.schemaName || 'public';
 
     // Check if table exists
     try {
-      await this.getRowCount(table.tableName);
+      await this.adapter.getTableRowCount(schema, table.tableName);
     } catch {
       issues.push(
         `Table ${table.tableName} does not exist or is not accessible`

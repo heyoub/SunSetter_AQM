@@ -119,10 +119,10 @@ function cleanupWizardShutdownHandler(): void {
 export function isInteractiveTTY(): boolean {
   return Boolean(
     process.stdin.isTTY &&
-    process.stdout.isTTY &&
-    !process.env.CI &&
-    !process.env.CONTINUOUS_INTEGRATION &&
-    process.env.TERM !== 'dumb'
+      process.stdout.isTTY &&
+      !process.env.CI &&
+      !process.env.CONTINUOUS_INTEGRATION &&
+      process.env.TERM !== 'dumb'
   );
 }
 
@@ -136,23 +136,28 @@ export function shouldAutoRunWizard(args: string[]): boolean {
   }
 
   // If only help/version flags, don't run wizard
-  if (args.includes('--help') || args.includes('-h') ||
-      args.includes('--version') || args.includes('-V')) {
+  if (
+    args.includes('--help') ||
+    args.includes('-h') ||
+    args.includes('--version') ||
+    args.includes('-V')
+  ) {
     return false;
   }
 
   // If no connection string and no other meaningful options, offer wizard
-  const hasConnectionArg = args.some(arg =>
-    arg.includes('--connection') ||
-    arg.includes('-c') ||
-    arg.startsWith('postgresql://') ||
-    arg.startsWith('postgres://')
+  const hasConnectionArg = args.some(
+    (arg) =>
+      arg.includes('--connection') ||
+      arg.includes('-c') ||
+      arg.startsWith('postgresql://') ||
+      arg.startsWith('postgres://')
   );
 
   const hasEnvConnection = Boolean(
     process.env.DATABASE_URL ||
-    process.env.POSTGRES_URL ||
-    process.env.PG_CONNECTION_STRING
+      process.env.POSTGRES_URL ||
+      process.env.PG_CONNECTION_STRING
   );
 
   // Auto-run wizard if:
@@ -355,7 +360,10 @@ export class InteractiveWizard {
       cleanupWizardShutdownHandler();
 
       // Handle user cancellation (Ctrl+C in inquirer)
-      if ((error as any).isTtyError || (error as Error).message.includes('canceled')) {
+      if (
+        (error as any).isTtyError ||
+        (error as Error).message.includes('canceled')
+      ) {
         console.log();
         console.log(chalk.yellow('  Wizard cancelled.'));
         return { ...DEFAULT_WIZARD_RESULT, cancelled: true };
@@ -371,9 +379,15 @@ export class InteractiveWizard {
   private handleNonTTYFallback(): WizardResult {
     console.log(chalk.yellow('Non-interactive environment detected.'));
     console.log();
-    console.log('To run the migration, please provide options via command line:');
+    console.log(
+      'To run the migration, please provide options via command line:'
+    );
     console.log();
-    console.log(chalk.cyan('  convconv migrate --connection "postgresql://user:pass@host/db"'));
+    console.log(
+      chalk.cyan(
+        '  convconv migrate --connection "postgresql://user:pass@host/db"'
+      )
+    );
     console.log();
     console.log('Or set environment variables:');
     console.log(chalk.gray('  DATABASE_URL=postgresql://user:pass@host/db'));
@@ -394,9 +408,13 @@ export class InteractiveWizard {
     console.log(chalk.gray('  ' + '\u2500'.repeat(40)));
     console.log();
     console.log(
-      chalk.gray('  This wizard will guide you through migrating your PostgreSQL')
+      chalk.gray(
+        '  This wizard will guide you through migrating your PostgreSQL'
+      )
     );
-    console.log(chalk.gray('  database to Convex. Press Ctrl+C to cancel at any time.'));
+    console.log(
+      chalk.gray('  database to Convex. Press Ctrl+C to cancel at any time.')
+    );
     console.log();
   }
 
@@ -436,7 +454,11 @@ export class InteractiveWizard {
 
         // Connection failed, offer to enter manually
         console.log();
-        console.log(chalk.yellow('  Would you like to enter a different connection string?'));
+        console.log(
+          chalk.yellow(
+            '  Would you like to enter a different connection string?'
+          )
+        );
       }
     }
 
@@ -831,7 +853,9 @@ export class InteractiveWizard {
         console.log(chalk.gray(`              - ${table}`));
       }
       console.log(
-        chalk.gray(`              ... and ${summary.selectedTables.length - 3} more`)
+        chalk.gray(
+          `              ... and ${summary.selectedTables.length - 3} more`
+        )
       );
     }
 
@@ -846,7 +870,9 @@ export class InteractiveWizard {
     // Dry run warning
     if (summary.dryRun) {
       console.log();
-      console.log(chalk.yellow('  DRY RUN MODE - No files or data will be written'));
+      console.log(
+        chalk.yellow('  DRY RUN MODE - No files or data will be written')
+      );
     }
 
     console.log();

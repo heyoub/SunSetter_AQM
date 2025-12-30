@@ -223,13 +223,22 @@ export function parseConnectionString(
   // Extract database name from path
   const database = url.pathname.replace(/^\/+/, '');
 
+  // Normalize password: if username is present but password is empty, use ''
+  // This maintains consistency for auth scenarios where password may be empty
+  const user = url.username ? decodeURIComponent(url.username) : undefined;
+  const password = url.password
+    ? decodeURIComponent(url.password)
+    : user !== undefined
+      ? ''
+      : undefined;
+
   return {
     type: dbType,
     host: url.hostname || undefined,
     port: url.port ? parseInt(url.port, 10) : DEFAULT_PORTS[protocol],
     database,
-    user: url.username ? decodeURIComponent(url.username) : undefined,
-    password: url.password ? decodeURIComponent(url.password) : undefined,
+    user,
+    password,
     ssl: options.ssl === 'true' || options.sslmode === 'require',
     options,
     raw: trimmed,
@@ -375,11 +384,49 @@ export function validateConnectionString(
 }
 
 /**
+ * Escape HTML special characters to prevent XSS attacks
+ * Use this when displaying connection string components in HTML contexts
+ */
+export function escapeHtml(text: string): string {
+  const htmlEscapeMap: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  };
+  return text.replace(/[&<>"']/g, (char) => htmlEscapeMap[char]);
+}
+
+/**
  * Mask password in connection string for logging
+ * Uses URL parsing for accuracy, with regex fallback for malformed strings
  */
 export function maskPassword(connectionString: string): string {
-  // Match password in URL format
-  return connectionString.replace(/(:\/\/[^:]+:)([^@]+)(@)/, '$1***$3');
+  if (!connectionString.includes('://')) {
+    return connectionString;
+  }
+
+  try {
+    const url = new URL(connectionString);
+    if (url.password) {
+      // Escape regex special characters in the password
+      const escapedPassword = url.password.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        '\\$&'
+      );
+      // Replace the password portion while preserving the rest
+      return connectionString.replace(
+        new RegExp(`:${escapedPassword}@`),
+        ':***@'
+      );
+    }
+    return connectionString;
+  } catch {
+    // Fallback regex for malformed URLs
+    // Matches :// followed by user:password@ pattern
+    return connectionString.replace(/(:\/\/[^:]+:)([^@]+)(@)/, '$1***$3');
+  }
 }
 
 /**

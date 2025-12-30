@@ -3,6 +3,11 @@
  *
  * Provides fuzzy string matching for table name suggestions
  * when users make typos in table names.
+ *
+ * Performance optimizations:
+ * - Single distance calculation per comparison (no redundant calls)
+ * - Early termination for exact matches
+ * - Combined exact + fuzzy matching in single pass
  */
 
 /**
@@ -12,6 +17,11 @@
 export function levenshteinDistance(str1: string, str2: string): number {
   const len1 = str1.length;
   const len2 = str2.length;
+
+  // Early exits for trivial cases
+  if (len1 === 0) return len2;
+  if (len2 === 0) return len1;
+  if (str1 === str2) return 0;
 
   // Create a 2D array for dynamic programming
   const matrix: number[][] = Array(len1 + 1)
@@ -42,15 +52,27 @@ export function levenshteinDistance(str1: string, str2: string): number {
 }
 
 /**
+ * Combined calculation returning both score and distance in single pass
+ * Avoids duplicate Levenshtein calculations
+ */
+export function calculateSimilarity(
+  str1: string,
+  str2: string
+): { score: number; distance: number } {
+  const s1 = str1.toLowerCase();
+  const s2 = str2.toLowerCase();
+  const distance = levenshteinDistance(s1, s2);
+  const maxLen = Math.max(s1.length, s2.length);
+  const score = maxLen === 0 ? 1.0 : 1 - distance / maxLen;
+  return { score, distance };
+}
+
+/**
  * Calculate similarity score (0-1) between two strings
  * Higher score means more similar
  */
 export function similarityScore(str1: string, str2: string): number {
-  const maxLen = Math.max(str1.length, str2.length);
-  if (maxLen === 0) return 1.0;
-
-  const distance = levenshteinDistance(str1.toLowerCase(), str2.toLowerCase());
-  return 1 - distance / maxLen;
+  return calculateSimilarity(str1, str2).score;
 }
 
 /**
@@ -63,28 +85,55 @@ export interface FuzzyMatch {
 }
 
 /**
+ * Combined result with optional exact match and fuzzy suggestions
+ */
+export interface FuzzyMatchResult {
+  /** Exact match if found (case-insensitive) */
+  exact: FuzzyMatch | null;
+  /** Fuzzy matches sorted by score (highest first), excludes exact match */
+  fuzzy: FuzzyMatch[];
+}
+
+/**
  * Find fuzzy matches for a given string in a list of candidates
+ *
+ * Performance optimizations:
+ * - Single distance calculation per candidate (uses calculateSimilarity)
+ * - Early termination when exact match found
+ * - Combined exact + fuzzy detection in single pass
  *
  * @param input - The input string to match
  * @param candidates - Array of candidate strings to match against
  * @param threshold - Minimum similarity score (0-1) to include in results (default: 0.6)
  * @param maxResults - Maximum number of results to return (default: 5)
- * @returns Sorted array of matches (highest score first)
+ * @returns Object with exact match (if any) and sorted fuzzy matches
  */
 export function fuzzyMatch(
   input: string,
   candidates: string[],
   threshold: number = 0.6,
   maxResults: number = 5
-): FuzzyMatch[] {
+): FuzzyMatchResult {
+  const inputLower = input.toLowerCase();
   const matches: FuzzyMatch[] = [];
+  let exactMatch: FuzzyMatch | null = null;
 
   for (const candidate of candidates) {
-    const score = similarityScore(input, candidate);
-    const distance = levenshteinDistance(
-      input.toLowerCase(),
-      candidate.toLowerCase()
-    );
+    const candidateLower = candidate.toLowerCase();
+
+    // Check for exact match (distance 0)
+    if (candidateLower === inputLower) {
+      exactMatch = {
+        value: candidate,
+        score: 1.0,
+        distance: 0,
+      };
+      // Early termination - return immediately with exact match
+      return { exact: exactMatch, fuzzy: [] };
+    }
+
+    // Single calculation for both score and distance
+    const { score, distance } = calculateSimilarity(input, candidate);
 
     if (score >= threshold) {
       matches.push({
@@ -103,7 +152,27 @@ export function fuzzyMatch(
     return a.distance - b.distance;
   });
 
-  return matches.slice(0, maxResults);
+  return {
+    exact: null,
+    fuzzy: matches.slice(0, maxResults),
+  };
+}
+
+/**
+ * Legacy API: Returns flat array of matches (deprecated, use fuzzyMatch instead)
+ * Maintained for backward compatibility
+ */
+export function fuzzyMatchLegacy(
+  input: string,
+  candidates: string[],
+  threshold: number = 0.6,
+  maxResults: number = 5
+): FuzzyMatch[] {
+  const result = fuzzyMatch(input, candidates, threshold, maxResults);
+  if (result.exact) {
+    return [result.exact, ...result.fuzzy].slice(0, maxResults);
+  }
+  return result.fuzzy;
 }
 
 /**
@@ -119,12 +188,14 @@ export function findBestMatch(
   candidates: string[],
   threshold: number = 0.6
 ): FuzzyMatch | null {
-  const matches = fuzzyMatch(input, candidates, threshold, 1);
-  return matches.length > 0 ? matches[0] : null;
+  const result = fuzzyMatch(input, candidates, threshold, 1);
+  // Return exact match first, or best fuzzy match
+  return result.exact || result.fuzzy[0] || null;
 }
 
 /**
  * Check if an exact match exists (case-insensitive)
+ * Uses fuzzyMatch with early termination for efficiency
  *
  * @param input - The input string to match
  * @param candidates - Array of candidate strings to match against
@@ -134,13 +205,14 @@ export function findExactMatch(
   input: string,
   candidates: string[]
 ): string | null {
-  const lowerInput = input.toLowerCase();
-  const match = candidates.find((c) => c.toLowerCase() === lowerInput);
-  return match || null;
+  // Use fuzzyMatch which has early termination for exact matches
+  const result = fuzzyMatch(input, candidates, 1.0, 1);
+  return result.exact?.value || null;
 }
 
 /**
  * Suggest corrections for a misspelled table name
+ * Uses single-pass fuzzyMatch for efficiency (no separate exact match check)
  *
  * @param tableName - The potentially misspelled table name
  * @param validTables - Array of valid table names
@@ -156,23 +228,21 @@ export function suggestTableNames(
   exactMatch: string | null;
   suggestions: FuzzyMatch[];
 } {
-  // Check for exact match first
-  const exactMatch = findExactMatch(tableName, validTables);
-  if (exactMatch) {
+  // Single-pass: fuzzyMatch handles both exact and fuzzy in one go
+  const result = fuzzyMatch(tableName, validTables, 0.5, maxSuggestions);
+
+  if (result.exact) {
     return {
       exists: true,
-      exactMatch,
+      exactMatch: result.exact.value,
       suggestions: [],
     };
   }
 
-  // Find fuzzy matches
-  const suggestions = fuzzyMatch(tableName, validTables, 0.5, maxSuggestions);
-
   return {
     exists: false,
     exactMatch: null,
-    suggestions,
+    suggestions: result.fuzzy,
   };
 }
 

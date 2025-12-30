@@ -1,15 +1,20 @@
 /**
  * Tests for Fuzzy Match Utility
+ *
+ * Updated for new combined API: fuzzyMatch returns { exact, fuzzy }
  */
 
 import {
   levenshteinDistance,
   similarityScore,
+  calculateSimilarity,
   fuzzyMatch,
+  fuzzyMatchLegacy,
   findBestMatch,
   findExactMatch,
   suggestTableNames,
   formatSuggestionMessage,
+  type FuzzyMatchResult,
 } from '../../src/utils/fuzzy-match';
 
 describe('Fuzzy Match Utility', () => {
@@ -68,7 +73,28 @@ describe('Fuzzy Match Utility', () => {
     });
   });
 
-  describe('fuzzyMatch', () => {
+  describe('calculateSimilarity', () => {
+    it('should return score and distance in single calculation', () => {
+      const result = calculateSimilarity('hello', 'hello');
+      expect(result.score).toBe(1);
+      expect(result.distance).toBe(0);
+    });
+
+    it('should calculate correct values for similar strings', () => {
+      const result = calculateSimilarity('users', 'usres');
+      expect(result.distance).toBe(2); // Two character swaps
+      expect(result.score).toBeGreaterThan(0.5);
+      expect(result.score).toBeLessThan(1);
+    });
+
+    it('should be case insensitive', () => {
+      const result = calculateSimilarity('HELLO', 'hello');
+      expect(result.score).toBe(1);
+      expect(result.distance).toBe(0);
+    });
+  });
+
+  describe('fuzzyMatch (new combined API)', () => {
     const candidates = [
       'users',
       'orders',
@@ -77,38 +103,73 @@ describe('Fuzzy Match Utility', () => {
       'user_roles',
     ];
 
-    it('should find exact matches', () => {
-      const matches = fuzzyMatch('users', candidates);
+    it('should return exact match with early termination', () => {
+      const result: FuzzyMatchResult = fuzzyMatch('users', candidates);
+      expect(result.exact).not.toBeNull();
+      expect(result.exact?.value).toBe('users');
+      expect(result.exact?.score).toBe(1);
+      expect(result.exact?.distance).toBe(0);
+      expect(result.fuzzy).toHaveLength(0); // Early termination
+    });
+
+    it('should find close matches for typos (no exact match)', () => {
+      const result = fuzzyMatch('usres', candidates);
+      expect(result.exact).toBeNull();
+      expect(result.fuzzy.length).toBeGreaterThan(0);
+      expect(result.fuzzy[0].value).toBe('users');
+    });
+
+    it('should find partial matches in fuzzy array', () => {
+      const result = fuzzyMatch('user', candidates, 0.5); // Lower threshold
+      expect(result.exact).toBeNull();
+      expect(result.fuzzy.some((m) => m.value === 'users')).toBe(true);
+    });
+
+    it('should respect threshold for fuzzy matches', () => {
+      const result = fuzzyMatch('xyz', candidates, 0.9);
+      expect(result.exact).toBeNull();
+      expect(result.fuzzy).toHaveLength(0);
+    });
+
+    it('should respect maxResults for fuzzy matches', () => {
+      const result = fuzzyMatch('u', candidates, 0.1, 2);
+      expect(result.fuzzy.length).toBeLessThanOrEqual(2);
+    });
+
+    it('should sort fuzzy matches by score descending', () => {
+      const result = fuzzyMatch('order', candidates, 0.3);
+      for (let i = 1; i < result.fuzzy.length; i++) {
+        expect(result.fuzzy[i - 1].score).toBeGreaterThanOrEqual(
+          result.fuzzy[i].score
+        );
+      }
+    });
+
+    it('should handle case-insensitive exact matches', () => {
+      const result = fuzzyMatch('USERS', candidates);
+      expect(result.exact).not.toBeNull();
+      expect(result.exact?.value).toBe('users');
+    });
+  });
+
+  describe('fuzzyMatchLegacy (backward compatibility)', () => {
+    const candidates = ['users', 'orders', 'products'];
+
+    it('should return flat array like old API', () => {
+      const matches = fuzzyMatchLegacy('users', candidates);
+      expect(Array.isArray(matches)).toBe(true);
       expect(matches[0].value).toBe('users');
       expect(matches[0].score).toBe(1);
     });
 
-    it('should find close matches for typos', () => {
-      const matches = fuzzyMatch('usres', candidates);
+    it('should include exact match in array', () => {
+      const matches = fuzzyMatchLegacy('orders', candidates);
+      expect(matches[0].value).toBe('orders');
+    });
+
+    it('should return fuzzy matches when no exact', () => {
+      const matches = fuzzyMatchLegacy('usres', candidates);
       expect(matches[0].value).toBe('users');
-    });
-
-    it('should find partial matches', () => {
-      const matches = fuzzyMatch('user', candidates, 0.5); // Lower threshold for partial matches
-      expect(matches.some((m) => m.value === 'users')).toBe(true);
-      // user_roles may not match with default threshold due to length difference
-    });
-
-    it('should respect threshold', () => {
-      const matches = fuzzyMatch('xyz', candidates, 0.9);
-      expect(matches).toHaveLength(0);
-    });
-
-    it('should respect maxResults', () => {
-      const matches = fuzzyMatch('u', candidates, 0.1, 2);
-      expect(matches.length).toBeLessThanOrEqual(2);
-    });
-
-    it('should sort by score descending', () => {
-      const matches = fuzzyMatch('order', candidates);
-      for (let i = 1; i < matches.length; i++) {
-        expect(matches[i - 1].score).toBeGreaterThanOrEqual(matches[i].score);
-      }
     });
   });
 

@@ -8,12 +8,11 @@ export default {
   },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^chalk$': '<rootDir>/tests/mocks/chalk.ts',
   },
-  transformIgnorePatterns: [
-    'node_modules/(?!(chalk|#ansi-styles|#supports-color)/)',
-  ],
   testEnvironment: 'node',
-  testMatch: ['**/tests/**/*.test.ts'],
+  testMatch: ['**/tests/**/*.test.ts', '**/tests/**/*.bench.ts'],
+  testPathIgnorePatterns: ['/node_modules/'],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',

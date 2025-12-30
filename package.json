@@ -7,7 +7,8 @@
     "sunsetter-aqm": "dist/index.js",
     "sunsetter": "dist/index.js",
     "aqm": "dist/index.js",
-    "db.aqm": "dist/index.js"
+    "db.aqm": "dist/index.js",
+    "sunsetter-mcp": "dist/mcp/server.js"
   },
   "type": "module",
   "engines": {
@@ -25,6 +26,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "tui": "node dist/tui/app.js",
+    "mcp": "node dist/mcp/server.js",
     "dev": "nodemon --exec ts-node --esm src/index.ts",
     "dev:tui": "ts-node --esm src/tui/app.ts",
     "test": "jest",
@@ -34,6 +36,15 @@
     "format": "prettier --write src/**/*.ts",
     "format:check": "prettier --check src/**/*.ts",
     "prepare": "husky install"
+  },
+  "mcpServers": {
+    "sunsetter-aqm": {
+      "command": "node",
+      "args": [
+        "dist/mcp/server.js"
+      ],
+      "description": "SunSetter AQM+ - Database to Convex migration tool with schema introspection, code generation, and migration capabilities"
+    }
   },
   "keywords": [
     "sunsetter",
@@ -57,11 +68,18 @@
     "validators",
     "queries",
     "mutations",
-    "actions"
+    "actions",
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "claude-code",
+    "claude-desktop",
+    "ai-tools"
   ],
   "author": "",
   "license": "Proprietary",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.1",
     "@types/blessed": "^0.1.27",
     "@types/figlet": "^1.7.0",
     "ascii-art-font": "^1.0.2",

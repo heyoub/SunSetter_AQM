@@ -19,12 +19,47 @@ export interface CheckConstraintConversion {
 }
 
 /**
+ * Check if the data type is an integer type
+ */
+function isIntegerType(dataType: string): boolean {
+  const intTypes = [
+    'smallint',
+    'integer',
+    'int',
+    'int2',
+    'int4',
+    'int8',
+    'bigint',
+    'serial',
+    'bigserial',
+    'smallserial',
+  ];
+  return intTypes.some((t) => dataType.toLowerCase().includes(t));
+}
+
+/**
+ * Check if the data type is a numeric/decimal type
+ */
+function isNumericType(dataType: string): boolean {
+  const numTypes = ['numeric', 'decimal', 'real', 'double', 'float', 'money'];
+  return numTypes.some((t) => dataType.toLowerCase().includes(t));
+}
+
+/**
+ * Check if the data type is a string/text type
+ */
+function isStringType(dataType: string): boolean {
+  const strTypes = ['char', 'varchar', 'text', 'character', 'string'];
+  return strTypes.some((t) => dataType.toLowerCase().includes(t));
+}
+
+/**
  * Convert a PostgreSQL check constraint to a Convex validator modifier
  */
 export function convertCheckConstraint(
   checkClause: string,
   columnName: string,
-  _dataType: string // Reserved for future type-specific constraint handling
+  dataType: string
 ): CheckConstraintConversion {
   // Remove "CHECK" wrapper if present
   let constraint = checkClause.trim();
@@ -40,6 +75,11 @@ export function convertCheckConstraint(
     constraint = constraint.slice(1, -1).trim();
   }
 
+  // Store data type info for type-specific handling
+  const isInteger = isIntegerType(dataType);
+  const isNumeric = isNumericType(dataType);
+  const isString = isStringType(dataType);
+
   // Pattern 1: Numeric range - (column >= X AND column <= Y)
   const rangePattern = new RegExp(
     `\\(?\\(?(${columnName})\\s*(>=|>)\\s*([\\d.\\-]+)\\s*(?:AND)?\\s*\\)?\\s*\\(?(${columnName})\\s*(<=|<)\\s*([\\d.\\-]+)\\)?\\)?`,
@@ -50,11 +90,26 @@ export function convertCheckConstraint(
     const [, , gtOp, gtValue, , ltOp, ltValue] = rangeMatch;
     const gteMethod = gtOp === '>=' ? 'gte' : 'gt';
     const lteMethod = ltOp === '<=' ? 'lte' : 'lt';
+
+    // Format values based on data type
+    const formattedGtValue = isInteger
+      ? Math.floor(parseFloat(gtValue))
+      : gtValue;
+    const formattedLtValue = isInteger
+      ? Math.floor(parseFloat(ltValue))
+      : ltValue;
+
+    const typeHint = isInteger
+      ? ' (integer values)'
+      : isNumeric
+        ? ' (numeric values)'
+        : '';
+
     return {
       originalConstraint: checkClause,
-      validatorModifier: `.${gteMethod}(${gtValue}).${lteMethod}(${ltValue})`,
+      validatorModifier: `.${gteMethod}(${formattedGtValue}).${lteMethod}(${formattedLtValue})`,
       success: true,
-      description: `Value must be ${gtOp} ${gtValue} and ${ltOp} ${ltValue}`,
+      description: `Value must be ${gtOp} ${formattedGtValue} and ${ltOp} ${formattedLtValue}${typeHint}`,
     };
   }
 
@@ -67,11 +122,12 @@ export function convertCheckConstraint(
   if (gteMatch) {
     const [, , op, value] = gteMatch;
     const method = op === '>=' ? 'gte' : 'gt';
+    const formattedValue = isInteger ? Math.floor(parseFloat(value)) : value;
     return {
       originalConstraint: checkClause,
-      validatorModifier: `.${method}(${value})`,
+      validatorModifier: `.${method}(${formattedValue})`,
       success: true,
-      description: `Value must be ${op} ${value}`,
+      description: `Value must be ${op} ${formattedValue}`,
     };
   }
 
@@ -84,11 +140,12 @@ export function convertCheckConstraint(
   if (lteMatch) {
     const [, , op, value] = lteMatch;
     const method = op === '<=' ? 'lte' : 'lt';
+    const formattedValue = isInteger ? Math.floor(parseFloat(value)) : value;
     return {
       originalConstraint: checkClause,
-      validatorModifier: `.${method}(${value})`,
+      validatorModifier: `.${method}(${formattedValue})`,
       success: true,
-      description: `Value must be ${op} ${value}`,
+      description: `Value must be ${op} ${formattedValue}`,
     };
   }
 
@@ -102,13 +159,25 @@ export function convertCheckConstraint(
     const [, op, value] = lengthMatch;
     const method =
       op === '<=' ? 'lte' : op === '<' ? 'lt' : op === '>=' ? 'gte' : 'gt';
+
+    // String length constraints only make sense for string types
+    if (!isString && !isInteger && !isNumeric) {
+      return {
+        originalConstraint: checkClause,
+        validatorModifier: `.${method}(${value})`,
+        success: true,
+        description: `String length must be ${op} ${value}`,
+        warning:
+          'Note: Convex validators check string length on the value itself. Ensure this matches your intent.',
+      };
+    }
+
+    // For string types, use proper length validation
     return {
       originalConstraint: checkClause,
       validatorModifier: `.${method}(${value})`,
       success: true,
-      description: `String length must be ${op} ${value}`,
-      warning:
-        'Note: Convex validators check string length on the value itself. Ensure this matches your intent.',
+      description: `String length must be ${op} ${value} characters`,
     };
   }
 
@@ -127,12 +196,31 @@ export function convertCheckConstraint(
 
     if (valueList.length > 0 && valueList.length <= 20) {
       // Only convert if reasonable number of values
-      const literals = valueList.map((v) => `v.literal("${v}")`).join(', ');
+      // Use type-aware literal formatting
+      const literals = valueList
+        .map((v) => {
+          if (isInteger) {
+            const numVal = parseInt(v, 10);
+            return isNaN(numVal) ? `v.literal("${v}")` : `v.literal(${numVal})`;
+          } else if (isNumeric) {
+            const numVal = parseFloat(v);
+            return isNaN(numVal) ? `v.literal("${v}")` : `v.literal(${numVal})`;
+          } else {
+            return `v.literal("${v}")`;
+          }
+        })
+        .join(', ');
+
+      const typeDesc = isInteger
+        ? ' (integers)'
+        : isNumeric
+          ? ' (numbers)'
+          : '';
       return {
         originalConstraint: checkClause,
         validatorModifier: `v.union(${literals})`,
         success: true,
-        description: `Value must be one of: ${valueList.join(', ')}`,
+        description: `Value must be one of: ${valueList.join(', ')}${typeDesc}`,
         warning:
           'This uses v.union() instead of a validator modifier. Adjust your schema accordingly.',
       };

@@ -550,7 +550,7 @@ export class TableMigrator {
     rows: PostgresRow[],
     documents: ConvexDocument[],
     options: TableMigrationOptions,
-    _batchNumber: number
+    batchNumber: number
   ): Promise<BatchResult> {
     const result: BatchResult = {
       success: false,
@@ -564,6 +564,20 @@ export class TableMigrator {
 
     const startTime = Date.now();
     let lastError: Error | null = null;
+
+    // Log batch progress for large migrations
+    if (batchNumber > 0 && batchNumber % 100 === 0) {
+      console.log(`  [${table.tableName}] Processing batch ${batchNumber}...`);
+    }
+
+    // Trigger checkpoint hint every 50 batches for resumability
+    if (
+      options.checkpointCallback &&
+      batchNumber > 0 &&
+      batchNumber % 50 === 0
+    ) {
+      options.checkpointCallback(table.tableName, batchNumber);
+    }
 
     for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
       try {
@@ -637,7 +651,7 @@ export class TableMigrator {
     table: TableInfo,
     rows: PostgresRow[],
     documents: ConvexDocument[],
-    _options: TableMigrationOptions
+    options: TableMigrationOptions
   ): Promise<BatchResult> {
     const result: BatchResult = {
       success: true,
@@ -650,8 +664,24 @@ export class TableMigrator {
     };
 
     const startTime = Date.now();
+    let skippedCount = 0;
 
     for (let i = 0; i < documents.length; i++) {
+      // Apply custom row validation if provided
+      if (options.validateRow) {
+        const isValid = options.validateRow(rows[i] as Record<string, unknown>);
+        if (!isValid) {
+          skippedCount++;
+          this.emit({
+            type: 'row:skip',
+            table: table.tableName,
+            row: i,
+            data: { reason: 'Failed custom validation' },
+          });
+          continue;
+        }
+      }
+
       try {
         const id = await this.convexClient.insert(
           table.tableName,
@@ -683,6 +713,14 @@ export class TableMigrator {
         };
         result.errors.push(migrationError);
 
+        // Call custom error handler if provided
+        if (options.onRowError) {
+          options.onRowError(
+            rows[i] as Record<string, unknown>,
+            error as Error
+          );
+        }
+
         this.emit({
           type: 'row:error',
           table: table.tableName,
@@ -690,6 +728,13 @@ export class TableMigrator {
           error: migrationError,
         });
       }
+    }
+
+    // Log skipped rows summary
+    if (skippedCount > 0) {
+      console.log(
+        `  [${table.tableName}] Skipped ${skippedCount} rows due to validation`
+      );
     }
 
     result.success = result.failedCount === 0;

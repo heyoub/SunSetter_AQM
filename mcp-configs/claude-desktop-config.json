@@ -1,0 +1,12 @@
+{
+  "$schema": "https://claude.ai/schemas/mcp-config.json",
+  "mcpServers": {
+    "sunsetter-aqm": {
+      "command": "node",
+      "args": ["/path/to/sunsetter-aqm/dist/mcp/server.js"],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}

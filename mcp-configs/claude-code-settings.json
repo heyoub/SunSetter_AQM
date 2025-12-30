@@ -1,0 +1,9 @@
+{
+  "$schema": "https://claude.ai/schemas/claude-code-settings.json",
+  "mcpServers": {
+    "sunsetter-aqm": {
+      "command": "npx",
+      "args": ["-y", "@Heyoub/sunsetter-aqm", "--mcp"]
+    }
+  }
+}

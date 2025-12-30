@@ -11,11 +11,23 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
+import * as fs from 'fs/promises';
 import { generateCodeFromDatabase } from './cli/generate.js';
 import { DatabaseConfig } from './config/database.js';
 import { GeneratorOptions } from './generator/code-generator.js';
 import { createMigrateCommand } from './cli/commands/migrate.js';
 import { createSeedExportCommand } from './cli/commands/seed-export.js';
+import {
+  loadConfig,
+  generateSampleConfig,
+  validateConfig,
+} from './config/config-loader.js';
+import {
+  createSuccessOutput,
+  createErrorOutput,
+  printJson,
+} from './cli/output/json-output.js';
+import { printFullHelp } from './cli/help.js';
 import {
   sunsetGradient,
   APP_NAME,
@@ -25,9 +37,15 @@ import {
 
 const program = new Command();
 
-// Check for TUI mode first (before Commander parsing)
+// Check for special flags first (before Commander parsing)
 const args = process.argv.slice(2);
-if (
+
+// Handle --mcp flag for MCP server mode
+if (args.includes('--mcp')) {
+  import('./mcp/server.js').then(({ startMcpServer }) => {
+    startMcpServer().catch(console.error);
+  });
+} else if (
   args.includes('--tui') ||
   args.includes('-i') ||
   args.includes('--interactive')
@@ -36,6 +54,9 @@ if (
   import('./tui/app.js').then(({ launchTUI }) => {
     launchTUI().catch(console.error);
   });
+} else if (args.includes('--help-full') || args.includes('--help-all')) {
+  // Show full help with all examples
+  printFullHelp();
 } else {
   // Normal CLI mode
   program
@@ -50,8 +71,15 @@ Database to Convex Migration Tool
 Supports: PostgreSQL, MySQL, SQLite, SQL Server
 `)
     )
-    .version(VERSION)
-    .option('--tui, -i, --interactive', 'Launch interactive TUI mode');
+    .version(VERSION, '-v, --version', 'Display version number')
+    .option('--tui, -i, --interactive', 'Launch interactive TUI mode')
+    .option('--mcp', 'Start MCP server for Claude integration')
+    .option('--json', 'Output results as JSON')
+    .option('--no-color', 'Disable colored output')
+    .option('--quiet', 'Minimal output (errors only)')
+    .option('--verbose', 'Verbose output with debug info')
+    .option('--config <path>', 'Path to config file')
+    .option('--help-full', 'Show full help with all examples');
 
   // Add migrate command (main feature)
   program.addCommand(createMigrateCommand());
@@ -361,26 +389,283 @@ Supports: PostgreSQL, MySQL, SQLite, SQL Server
       }
     });
 
-  // Show logo on help
+  // Add init command for config file creation
+  program
+    .command('init')
+    .description('Create a configuration file (.sunsetterrc)')
+    .option('-f, --force', 'Overwrite existing config file')
+    .option('--json', 'Output result as JSON')
+    .action(async (options) => {
+      const configPath = '.sunsetterrc';
+
+      try {
+        // Check if config already exists
+        try {
+          await fs.access(configPath);
+          if (!options.force) {
+            if (options.json) {
+              printJson(
+                createErrorOutput('init', {
+                  code: 'CONFIG_EXISTS',
+                  message:
+                    'Config file already exists. Use --force to overwrite.',
+                })
+              );
+            } else {
+              console.error(
+                chalk.red(
+                  'Config file already exists. Use --force to overwrite.'
+                )
+              );
+            }
+            process.exit(1);
+          }
+        } catch {
+          // File doesn't exist, continue
+        }
+
+        // Write sample config
+        const sampleConfig = generateSampleConfig();
+        await fs.writeFile(configPath, sampleConfig, 'utf-8');
+
+        if (options.json) {
+          printJson(
+            createSuccessOutput('init', {
+              configPath,
+              message: 'Config file created successfully',
+            })
+          );
+        } else {
+          console.log(chalk.green('✅ Created .sunsetterrc'));
+          console.log('');
+          console.log(chalk.gray('Edit the file to configure your migration:'));
+          console.log(chalk.cyan(`  ${configPath}`));
+          console.log('');
+          console.log(chalk.gray('Then run:'));
+          console.log(chalk.cyan('  sunsetter-aqm migrate'));
+        }
+      } catch (error) {
+        if (options.json) {
+          printJson(createErrorOutput('init', error as Error));
+        } else {
+          console.error(
+            chalk.red('Error creating config:'),
+            (error as Error).message
+          );
+        }
+        process.exit(1);
+      }
+    });
+
+  // Add validate-config command
+  program
+    .command('validate-config')
+    .description('Validate configuration file')
+    .option('-c, --config <path>', 'Path to config file')
+    .option('--json', 'Output result as JSON')
+    .action(async (options) => {
+      try {
+        const loaded = await loadConfig(
+          options.config ? options.config : process.cwd()
+        );
+
+        if (!loaded.path) {
+          if (options.json) {
+            printJson(
+              createErrorOutput('validate-config', {
+                code: 'NO_CONFIG',
+                message: 'No configuration file found',
+              })
+            );
+          } else {
+            console.error(chalk.red('No configuration file found.'));
+            console.log(chalk.gray('Run `sunsetter-aqm init` to create one.'));
+          }
+          process.exit(1);
+        }
+
+        const validation = validateConfig(loaded.config);
+
+        if (options.json) {
+          printJson(
+            createSuccessOutput('validate-config', {
+              valid: validation.valid,
+              source: loaded.source,
+              path: loaded.path,
+              errors: validation.errors,
+              config: loaded.config,
+            })
+          );
+        } else {
+          console.log(chalk.cyan(`Config file: ${loaded.path}`));
+          console.log(chalk.gray(`Source: ${loaded.source}`));
+          console.log('');
+
+          if (validation.valid) {
+            console.log(chalk.green('✅ Configuration is valid'));
+          } else {
+            console.log(chalk.red('❌ Configuration has errors:'));
+            validation.errors.forEach((err) => {
+              console.log(chalk.red(`  • ${err}`));
+            });
+          }
+        }
+
+        process.exit(validation.valid ? 0 : 1);
+      } catch (error) {
+        if (options.json) {
+          printJson(createErrorOutput('validate-config', error as Error));
+        } else {
+          console.error(chalk.red('Error:'), (error as Error).message);
+        }
+        process.exit(1);
+      }
+    });
+
+  // Add doctor command for diagnostics
+  program
+    .command('doctor')
+    .description('Check system requirements and diagnose issues')
+    .option('--json', 'Output result as JSON')
+    .action(async (options) => {
+      const checks: Array<{
+        name: string;
+        status: 'ok' | 'warn' | 'error';
+        message: string;
+      }> = [];
+
+      // Check Node.js version
+      const nodeVersion = process.version;
+      const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
+      if (majorVersion >= 18) {
+        checks.push({
+          name: 'Node.js',
+          status: 'ok',
+          message: `${nodeVersion} (>= 18 required)`,
+        });
+      } else {
+        checks.push({
+          name: 'Node.js',
+          status: 'error',
+          message: `${nodeVersion} (>= 18 required)`,
+        });
+      }
+
+      // Check for config file
+      const configLoaded = await loadConfig();
+      if (configLoaded.path) {
+        checks.push({
+          name: 'Config File',
+          status: 'ok',
+          message: `Found: ${configLoaded.source}`,
+        });
+      } else {
+        checks.push({
+          name: 'Config File',
+          status: 'warn',
+          message: 'Not found (optional)',
+        });
+      }
+
+      // Check for convex directory
+      try {
+        await fs.access('./convex');
+        checks.push({
+          name: 'Convex Directory',
+          status: 'ok',
+          message: './convex exists',
+        });
+      } catch {
+        checks.push({
+          name: 'Convex Directory',
+          status: 'warn',
+          message: './convex not found (will be created)',
+        });
+      }
+
+      // Check environment variables
+      if (process.env.CONVEX_DEPLOYMENT) {
+        checks.push({
+          name: 'CONVEX_DEPLOYMENT',
+          status: 'ok',
+          message: 'Set',
+        });
+      } else {
+        checks.push({
+          name: 'CONVEX_DEPLOYMENT',
+          status: 'warn',
+          message: 'Not set (optional)',
+        });
+      }
+
+      if (options.json) {
+        const allOk = checks.every((c) => c.status !== 'error');
+        printJson(
+          createSuccessOutput('doctor', {
+            healthy: allOk,
+            checks,
+          })
+        );
+      } else {
+        console.log(chalk.bold('System Diagnostics'));
+        console.log('');
+
+        for (const check of checks) {
+          const icon =
+            check.status === 'ok'
+              ? chalk.green('✓')
+              : check.status === 'warn'
+                ? chalk.yellow('⚠')
+                : chalk.red('✗');
+          const color =
+            check.status === 'ok'
+              ? chalk.green
+              : check.status === 'warn'
+                ? chalk.yellow
+                : chalk.red;
+          console.log(`  ${icon} ${check.name}: ${color(check.message)}`);
+        }
+
+        console.log('');
+        const hasErrors = checks.some((c) => c.status === 'error');
+        if (hasErrors) {
+          console.log(
+            chalk.red('Some checks failed. Please fix the issues above.')
+          );
+        } else {
+          console.log(chalk.green('All checks passed!'));
+        }
+      }
+
+      process.exit(checks.some((c) => c.status === 'error') ? 1 : 0);
+    });
+
+  // Enhanced help
   program.on('--help', () => {
     console.log('');
-    console.log(chalk.gray('  Examples:'));
+    console.log(chalk.bold.yellow('Quick Start:'));
     console.log('');
-    console.log(chalk.cyan('    # Launch interactive TUI mode'));
-    console.log('    $ sunsetter-aqm --tui');
+    console.log(chalk.cyan('  # Interactive mode (recommended):'));
+    console.log('  $ sunsetter-aqm --tui');
     console.log('');
-    console.log(chalk.cyan('    # Migrate PostgreSQL to Convex'));
+    console.log(chalk.cyan('  # Create config file:'));
+    console.log('  $ sunsetter-aqm init');
+    console.log('');
+    console.log(chalk.cyan('  # Migrate PostgreSQL to Convex:'));
     console.log(
-      '    $ sunsetter-aqm migrate -c "postgresql://user:pass@localhost/db"'
+      '  $ sunsetter-aqm migrate -c "postgresql://user:pass@localhost/db"'
     );
     console.log('');
-    console.log(chalk.cyan('    # Migrate MySQL to Convex'));
-    console.log(
-      '    $ sunsetter-aqm migrate -c "mysql://user:pass@localhost/db"'
-    );
+    console.log(chalk.cyan('  # Dry run (preview only):'));
+    console.log('  $ sunsetter-aqm migrate -c "postgresql://..." --dry-run');
     console.log('');
-    console.log(chalk.cyan('    # Generate schema only'));
-    console.log('    $ sunsetter-aqm migrate -c "..." -m schema-only');
+    console.log(chalk.cyan('  # JSON output for CI/CD:'));
+    console.log('  $ sunsetter-aqm migrate -c "postgresql://..." --json');
+    console.log('');
+    console.log(chalk.gray('For full help with all examples:'));
+    console.log(chalk.cyan('  $ sunsetter-aqm --help-full'));
+    console.log('');
+    console.log(chalk.gray('Documentation: https://github.com/Heyoub/db.aqm'));
     console.log('');
   });
 

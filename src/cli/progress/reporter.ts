@@ -553,7 +553,7 @@ export class ProgressReporter {
         format: (
           options: cliProgress.Options,
           params: cliProgress.Params,
-          _payload: Record<string, unknown>
+          payload: Record<string, unknown>
         ) => {
           const bar = chalk.cyan(
             params.progress >= 1
@@ -571,6 +571,12 @@ export class ProgressReporter {
 
           const percentage = `${Math.round((params.progress || 0) * 100)}%`;
           const valueDisplay = chalk.gray(`${params.value}/${params.total}`);
+
+          // Use payload for contextual info (table name, phase, etc.)
+          const tableName = payload.table
+            ? chalk.yellow(` ${payload.table}`)
+            : '';
+          const phase = payload.phase ? chalk.gray(` [${payload.phase}]`) : '';
 
           // Calculate throughput-based ETA
           const elapsedSec = (Date.now() - this.progressStartTime) / 1000;
@@ -607,7 +613,7 @@ export class ProgressReporter {
               : 0;
           const throughputDisplay = chalk.gray(`${throughput}/s`);
 
-          return `  ${bar} ${percentage} | ${valueDisplay} ${label} | ${throughputDisplay} | ${elapsedDisplay} / ${etaDisplay} | ${memDisplay}`;
+          return `  ${bar} ${percentage} | ${valueDisplay}${tableName}${phase} ${label} | ${throughputDisplay} | ${elapsedDisplay} / ${etaDisplay} | ${memDisplay}`;
         },
         barCompleteChar: '\u2588',
         barIncompleteChar: '\u2591',

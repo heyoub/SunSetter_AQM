@@ -192,6 +192,12 @@ export interface TableMigrationOptions {
   primaryKey?: string;
   /** Cursor field for pagination */
   cursorField?: string;
+  /** Checkpoint callback - called periodically for resumability */
+  checkpointCallback?: (tableName: string, batchNumber: number) => void;
+  /** Custom row validation function - return false to skip row */
+  validateRow?: (row: Record<string, unknown>) => boolean;
+  /** Custom error handler for individual row failures */
+  onRowError?: (row: Record<string, unknown>, error: Error) => void;
 }
 
 /**

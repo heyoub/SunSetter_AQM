@@ -397,7 +397,35 @@ export function parseConnectionString(
   };
 
   if (type === DatabaseType.SQLITE) {
-    config.filename = url.pathname;
+    // SQLite path handling:
+    // - sqlite:test.db → test.db (relative)
+    // - sqlite:./test.db → ./test.db (relative with dot)
+    // - sqlite:///test.db → test.db (relative, common format)
+    // - sqlite:////absolute/path → /absolute/path (Unix absolute)
+    // - sqlite:///C:/path → C:/path (Windows absolute)
+    let filename = url.pathname;
+
+    // Handle triple-slash format: sqlite:///path
+    if (filename.startsWith('/')) {
+      // Check for Windows absolute path (sqlite:///C:/...)
+      if (/^\/[A-Za-z]:/.test(filename)) {
+        filename = filename.slice(1); // Remove leading slash: /C:/path → C:/path
+      } else if (filename.startsWith('//')) {
+        // Unix absolute path: sqlite:////path → /path
+        filename = filename.slice(1);
+      } else {
+        // Relative path with leading slash: sqlite:///test.db → test.db
+        filename = filename.replace(/^\/+/, '');
+      }
+    }
+
+    // Handle hostname as path (sqlite://./test.db parses as hostname="." pathname="/test.db")
+    if (url.hostname === '.') {
+      filename = './' + filename.replace(/^\/+/, '');
+    }
+
+    config.filename = filename || config.database;
+    config.database = config.filename;
   } else {
     config.host = url.hostname || 'localhost';
     config.port = url.port ? parseInt(url.port, 10) : getDefaultPort(type);

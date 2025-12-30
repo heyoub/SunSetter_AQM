@@ -414,9 +414,8 @@ function getDatabaseType(
 
 /**
  * Create a database adapter from options
- * @internal Reserved for future direct adapter creation
  */
-async function _createDatabaseAdapter(
+async function createDatabaseAdapterFromOptions(
   options: MigrateOptions,
   reporter: ProgressReporter
 ): Promise<DatabaseAdapter> {
@@ -448,6 +447,44 @@ async function _createDatabaseAdapter(
   await adapter.connect();
 
   return adapter;
+}
+
+/**
+ * Build TableInfo array from adapter for multi-database support
+ */
+async function introspectWithAdapter(
+  adapter: DatabaseAdapter,
+  schemaName: string = 'public'
+): Promise<TableInfo[]> {
+  const schemas = await adapter.getSchemas();
+  const targetSchema = schemas.includes(schemaName)
+    ? schemaName
+    : schemas[0] || 'main';
+
+  const tableNames = await adapter.getTables(targetSchema);
+  const tables: TableInfo[] = [];
+
+  for (const tableName of tableNames) {
+    const columns = await adapter.getColumns(targetSchema, tableName);
+    const primaryKeys = await adapter.getPrimaryKeys(targetSchema, tableName);
+    const foreignKeys = await adapter.getForeignKeys(targetSchema, tableName);
+    const indexes = await adapter.getIndexes(targetSchema, tableName);
+
+    tables.push({
+      tableName,
+      schemaName: targetSchema,
+      tableType: 'BASE TABLE',
+      columns,
+      primaryKeys,
+      foreignKeys,
+      indexes,
+      checkConstraints: [],
+      description: null,
+      convexTableName: tableName,
+    });
+  }
+
+  return tables;
 }
 
 // ============================================================================
@@ -713,7 +750,8 @@ async function runMigrateCommand(options: MigrateOptions): Promise<void> {
           config,
           outputDir,
           reporter,
-          enhancementOptions
+          enhancementOptions,
+          options
         );
         break;
 
@@ -918,22 +956,27 @@ async function runSchemaOnlyMigration(
   config: Partial<MigrationConfig>,
   outputDir: string,
   reporter: ProgressReporter,
-  enhancementOptions: EnhancementOptions = {}
+  enhancementOptions: EnhancementOptions = {},
+  options?: MigrateOptions
 ): Promise<void> {
   reporter.startSpinner('Connecting to database...');
 
-  const pool = new Pool({ connectionString: config.connectionString });
+  // Use multi-database adapter pattern
+  const adapter = await createDatabaseAdapterFromOptions(
+    options || { connection: config.connectionString },
+    reporter
+  );
 
   try {
-    await pool.query('SELECT 1');
+    const isConnected = await adapter.testConnection();
+    if (!isConnected) {
+      throw new Error('Failed to connect to database');
+    }
     reporter.succeedSpinner('Connected to database');
 
-    // Introspect schema
+    // Introspect schema using adapter
     reporter.startSpinner('Introspecting schema...');
-    const dbConnection = createDbConnectionWrapper(pool);
-    const introspector = new SchemaIntrospector(dbConnection);
-    const schema = await introspector.introspectSchema('public');
-    let tables = schema.tables;
+    let tables = await introspectWithAdapter(adapter, 'public');
 
     // Apply filters with fuzzy matching for invalid table names
     if (config.includeTables && config.includeTables.length > 0) {
@@ -1088,7 +1131,7 @@ async function runSchemaOnlyMigration(
       );
     }
   } finally {
-    await pool.end();
+    await adapter.disconnect();
   }
 }
 

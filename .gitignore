@@ -48,3 +48,11 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Test files
+test.db
+*.sqlite
+*.sqlite3
+
+# Generated output (for testing)
+convex/

@@ -52,8 +52,18 @@ export function levenshteinDistance(str1: string, str2: string): number {
 }
 
 /**
- * Combined calculation returning both score and distance in single pass
- * Avoids duplicate Levenshtein calculations
+ * Combined calculation returning both score and distance in single pass.
+ * More efficient than calling similarityScore() and levenshteinDistance() separately.
+ *
+ * @param str1 - First string to compare
+ * @param str2 - Second string to compare
+ * @returns Object with similarity score (0-1) and Levenshtein distance
+ *
+ * @example
+ * ```typescript
+ * const { score, distance } = calculateSimilarity('hello', 'hallo');
+ * // => { score: 0.8, distance: 1 }
+ * ```
  */
 export function calculateSimilarity(
   str1: string,
@@ -95,7 +105,11 @@ export interface FuzzyMatchResult {
 }
 
 /**
- * Find fuzzy matches for a given string in a list of candidates
+ * Find fuzzy matches for a given string in a list of candidates.
+ *
+ * Returns a FuzzyMatchResult with separate exact and fuzzy matches.
+ * If an exact match (case-insensitive) is found, returns immediately
+ * with empty fuzzy array for optimal performance.
  *
  * Performance optimizations:
  * - Single distance calculation per candidate (uses calculateSimilarity)
@@ -104,9 +118,20 @@ export interface FuzzyMatchResult {
  *
  * @param input - The input string to match
  * @param candidates - Array of candidate strings to match against
- * @param threshold - Minimum similarity score (0-1) to include in results (default: 0.6)
- * @param maxResults - Maximum number of results to return (default: 5)
- * @returns Object with exact match (if any) and sorted fuzzy matches
+ * @param threshold - Minimum similarity score (0-1) to include in fuzzy results (default: 0.6)
+ * @param maxResults - Maximum number of fuzzy results to return (default: 5)
+ * @returns FuzzyMatchResult with `exact` (FuzzyMatch | null) and `fuzzy` (FuzzyMatch[])
+ *
+ * @example
+ * ```typescript
+ * // Exact match - returns immediately
+ * fuzzyMatch('users', ['users', 'orders']);
+ * // => { exact: { value: 'users', score: 1, distance: 0 }, fuzzy: [] }
+ *
+ * // Fuzzy match - finds similar candidates
+ * fuzzyMatch('usres', ['users', 'orders'], 0.6);
+ * // => { exact: null, fuzzy: [{ value: 'users', score: 0.8, distance: 2 }] }
+ * ```
  */
 export function fuzzyMatch(
   input: string,
@@ -159,8 +184,16 @@ export function fuzzyMatch(
 }
 
 /**
- * Legacy API: Returns flat array of matches (deprecated, use fuzzyMatch instead)
- * Maintained for backward compatibility
+ * Legacy API: Returns flat array of matches.
+ *
+ * @deprecated Use `fuzzyMatch()` instead which returns `{ exact, fuzzy }` for better semantics.
+ * This function is maintained for backward compatibility only.
+ *
+ * @param input - The input string to match
+ * @param candidates - Array of candidate strings to match against
+ * @param threshold - Minimum similarity score (0-1) to include in results (default: 0.6)
+ * @param maxResults - Maximum number of results to return (default: 5)
+ * @returns Flat array of FuzzyMatch objects sorted by score (highest first)
  */
 export function fuzzyMatchLegacy(
   input: string,

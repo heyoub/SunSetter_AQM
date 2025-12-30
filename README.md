@@ -403,6 +403,82 @@ Generated hooks per table:
 - `useUpdateUser()` - Update mutation
 - `useRemoveUser()` - Delete mutation
 
+## Utility APIs
+
+SunSetter exports utility functions for programmatic use:
+
+### Connection Validator
+
+```typescript
+// Import from utils subpath
+import {
+  parseConnectionString,
+  validateConnectionString,
+  maskPassword,
+  escapeHtml,
+  buildConnectionString,
+  detectCloudProvider,
+} from '@heyoub/sunsetter-aqm/utils';
+
+// Or import directly
+import { parseConnectionString } from '@heyoub/sunsetter-aqm/utils/connection-validator';
+
+// Parse connection string
+const parsed = parseConnectionString('postgresql://user:pass@localhost/db');
+// => { type: 'postgresql', host: 'localhost', database: 'db', ... }
+
+// Validate with helpful errors
+const result = validateConnectionString(connectionString);
+// => { valid: boolean, errors: [], warnings: [], suggestions: [] }
+
+// Mask password for logging (safe for output)
+const masked = maskPassword('postgresql://user:secret@host/db');
+// => 'postgresql://user:***@host/db'
+
+// Escape HTML for XSS prevention
+const safe = escapeHtml('<script>alert("xss")</script>');
+// => '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'
+```
+
+### Fuzzy Match
+
+```typescript
+// Import from utils subpath
+import {
+  fuzzyMatch,
+  suggestTableNames,
+  findBestMatch,
+  type FuzzyMatchResult,
+} from '@heyoub/sunsetter-aqm/utils';
+
+// Or import directly
+import { fuzzyMatch } from '@heyoub/sunsetter-aqm/utils/fuzzy-match';
+
+// Find matches with new combined API
+const result: FuzzyMatchResult = fuzzyMatch('usres', ['users', 'orders'], 0.6);
+// => {
+//   exact: null,  // FuzzyMatch | null - exact match if found
+//   fuzzy: [{ value: 'users', score: 0.8, distance: 2 }]  // sorted by score
+// }
+
+// With exact match - returns immediately (early termination)
+const result2 = fuzzyMatch('users', ['users', 'orders']);
+// => { exact: { value: 'users', score: 1, distance: 0 }, fuzzy: [] }
+
+// Suggest corrections for table names
+const suggestion = suggestTableNames('usres', ['users', 'orders', 'products']);
+// => { exists: false, exactMatch: null, suggestions: [...] }
+```
+
+## Additional Documentation
+
+For more detailed guides, see:
+
+- [**QUICK_REFERENCE_110.md**](./QUICK_REFERENCE_110.md) - Quick API reference card
+- [**MIGRATION_GUIDE_110.md**](./MIGRATION_GUIDE_110.md) - Step-by-step migration workflow
+- [**ENHANCEMENTS_110_PERCENT.md**](./ENHANCEMENTS_110_PERCENT.md) - Detailed feature documentation
+- [**ARCHITECTURE_110.md**](./ARCHITECTURE_110.md) - System architecture deep dive
+
 ## Architecture
 
 ```

@@ -11,7 +11,11 @@ import type { TableInfo } from '../../src/introspector/schema-introspector';
 // Helper to create a minimal TableInfo
 function createTable(
   name: string,
-  foreignKeys: Array<{ columnName: string; referencedTable: string; referencedColumn: string }> = []
+  foreignKeys: Array<{
+    columnName: string;
+    referencedTable: string;
+    referencedColumn: string;
+  }> = []
 ): TableInfo {
   return {
     tableName: name,
@@ -74,7 +78,11 @@ describe('DependencyResolver', () => {
       const tables = [
         createTable('users'),
         createTable('posts', [
-          { columnName: 'author_id', referencedTable: 'users', referencedColumn: 'id' },
+          {
+            columnName: 'author_id',
+            referencedTable: 'users',
+            referencedColumn: 'id',
+          },
         ]),
       ];
 
@@ -88,7 +96,11 @@ describe('DependencyResolver', () => {
     it('should skip self-referencing foreign keys', () => {
       const tables = [
         createTable('categories', [
-          { columnName: 'parent_id', referencedTable: 'categories', referencedColumn: 'id' },
+          {
+            columnName: 'parent_id',
+            referencedTable: 'categories',
+            referencedColumn: 'id',
+          },
         ]),
       ];
 
@@ -100,7 +112,11 @@ describe('DependencyResolver', () => {
     it('should skip references to tables not in the set', () => {
       const tables = [
         createTable('posts', [
-          { columnName: 'author_id', referencedTable: 'users', referencedColumn: 'id' },
+          {
+            columnName: 'author_id',
+            referencedTable: 'users',
+            referencedColumn: 'id',
+          },
         ]),
       ];
 
@@ -130,7 +146,11 @@ describe('DependencyResolver', () => {
     it('should resolve tables in dependency order', () => {
       const tables = [
         createTable('posts', [
-          { columnName: 'author_id', referencedTable: 'users', referencedColumn: 'id' },
+          {
+            columnName: 'author_id',
+            referencedTable: 'users',
+            referencedColumn: 'id',
+          },
         ]),
         createTable('users'),
       ];
@@ -147,10 +167,18 @@ describe('DependencyResolver', () => {
       // users <- posts <- comments
       const tables = [
         createTable('comments', [
-          { columnName: 'post_id', referencedTable: 'posts', referencedColumn: 'id' },
+          {
+            columnName: 'post_id',
+            referencedTable: 'posts',
+            referencedColumn: 'id',
+          },
         ]),
         createTable('posts', [
-          { columnName: 'author_id', referencedTable: 'users', referencedColumn: 'id' },
+          {
+            columnName: 'author_id',
+            referencedTable: 'users',
+            referencedColumn: 'id',
+          },
         ]),
         createTable('users'),
       ];
@@ -169,8 +197,12 @@ describe('DependencyResolver', () => {
       // A <- B, A <- C, B <- D, C <- D
       const tables = [
         createTable('A'),
-        createTable('B', [{ columnName: 'a_id', referencedTable: 'A', referencedColumn: 'id' }]),
-        createTable('C', [{ columnName: 'a_id', referencedTable: 'A', referencedColumn: 'id' }]),
+        createTable('B', [
+          { columnName: 'a_id', referencedTable: 'A', referencedColumn: 'id' },
+        ]),
+        createTable('C', [
+          { columnName: 'a_id', referencedTable: 'A', referencedColumn: 'id' },
+        ]),
         createTable('D', [
           { columnName: 'b_id', referencedTable: 'B', referencedColumn: 'id' },
           { columnName: 'c_id', referencedTable: 'C', referencedColumn: 'id' },
@@ -195,8 +227,12 @@ describe('DependencyResolver', () => {
     it('should detect simple circular dependency', () => {
       // A -> B -> A
       const tables = [
-        createTable('A', [{ columnName: 'b_id', referencedTable: 'B', referencedColumn: 'id' }]),
-        createTable('B', [{ columnName: 'a_id', referencedTable: 'A', referencedColumn: 'id' }]),
+        createTable('A', [
+          { columnName: 'b_id', referencedTable: 'B', referencedColumn: 'id' },
+        ]),
+        createTable('B', [
+          { columnName: 'a_id', referencedTable: 'A', referencedColumn: 'id' },
+        ]),
       ];
 
       const result = resolver.resolve(tables);
@@ -207,9 +243,15 @@ describe('DependencyResolver', () => {
     it('should detect longer circular chains', () => {
       // A -> B -> C -> A
       const tables = [
-        createTable('A', [{ columnName: 'b_id', referencedTable: 'B', referencedColumn: 'id' }]),
-        createTable('B', [{ columnName: 'c_id', referencedTable: 'C', referencedColumn: 'id' }]),
-        createTable('C', [{ columnName: 'a_id', referencedTable: 'A', referencedColumn: 'id' }]),
+        createTable('A', [
+          { columnName: 'b_id', referencedTable: 'B', referencedColumn: 'id' },
+        ]),
+        createTable('B', [
+          { columnName: 'c_id', referencedTable: 'C', referencedColumn: 'id' },
+        ]),
+        createTable('C', [
+          { columnName: 'a_id', referencedTable: 'A', referencedColumn: 'id' },
+        ]),
       ];
 
       const result = resolver.resolve(tables);
@@ -221,10 +263,18 @@ describe('DependencyResolver', () => {
       const tables = [
         createTable('users'),
         createTable('posts', [
-          { columnName: 'author_id', referencedTable: 'users', referencedColumn: 'id' },
+          {
+            columnName: 'author_id',
+            referencedTable: 'users',
+            referencedColumn: 'id',
+          },
         ]),
         createTable('comments', [
-          { columnName: 'post_id', referencedTable: 'posts', referencedColumn: 'id' },
+          {
+            columnName: 'post_id',
+            referencedTable: 'posts',
+            referencedColumn: 'id',
+          },
         ]),
       ];
 
@@ -243,7 +293,9 @@ describe('DependencyResolver', () => {
       ];
 
       resolver.buildGraph(tables);
-      const order = resolver.getMigrationOrder(tables, { include: ['users', 'posts'] });
+      const order = resolver.getMigrationOrder(tables, {
+        include: ['users', 'posts'],
+      });
 
       expect(order).toContain('users');
       expect(order).toContain('posts');
@@ -258,7 +310,9 @@ describe('DependencyResolver', () => {
       ];
 
       resolver.buildGraph(tables);
-      const order = resolver.getMigrationOrder(tables, { exclude: ['comments'] });
+      const order = resolver.getMigrationOrder(tables, {
+        exclude: ['comments'],
+      });
 
       expect(order).toContain('users');
       expect(order).toContain('posts');
@@ -285,7 +339,11 @@ describe('DependencyResolver', () => {
       const tables = [
         createTable('users'),
         createTable('posts', [
-          { columnName: 'author_id', referencedTable: 'users', referencedColumn: 'id' },
+          {
+            columnName: 'author_id',
+            referencedTable: 'users',
+            referencedColumn: 'id',
+          },
         ]),
       ];
 

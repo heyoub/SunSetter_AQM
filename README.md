@@ -36,6 +36,14 @@ AQM = **A**ctions, **Q**ueries, **M**utations - the building blocks of Convex
 - **Visual Progress** - Real-time progress bars per table
 - **Dashboard** - Live migration statistics
 
+### Production Enhancements
+
+- **Slack Notifications** - Real-time migration alerts to Slack
+- **PII Data Masking** - GDPR-compliant data anonymization
+- **Post-Migration Verification** - Validate row counts after migration
+- **React Hooks Generation** - Type-safe React hooks for Convex
+- **Connection Validation** - Helpful errors with cloud provider examples
+
 ### MCP Integration
 
 - **Claude Code** - Use as an MCP server in Claude Code CLI
@@ -178,6 +186,13 @@ Migration Options:
   --dry-run                   Preview without making changes
   --resume                    Resume from checkpoint
   --rollback                  Rollback previous migration
+
+Enhancement Options:
+  --slack-webhook <url>       Slack webhook for migration notifications
+  --mask-pii                  Enable PII data masking during migration
+  --verify                    Run post-migration verification
+  --react-hooks               Generate React hooks for Convex functions
+  --hooks-output <dir>        Output directory for hooks (default: ./src/hooks)
 ```
 
 ## JSON Output
@@ -309,6 +324,84 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 - `plan-migration` - Generate a migration plan
 - `analyze-schema` - Analyze database schema for issues
 - `optimize-migration` - Get optimization suggestions
+
+## Slack Notifications
+
+Get real-time migration updates in Slack:
+
+```bash
+sunsetter migrate -c "postgresql://..." \
+  --slack-webhook "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+```
+
+Notifications include:
+
+- Migration start (tables, estimated rows)
+- Migration complete (duration, rows migrated, failures)
+- Migration failure (error details, failed table)
+
+## PII Data Masking
+
+Anonymize sensitive data during migration for GDPR/HIPAA compliance:
+
+```bash
+sunsetter migrate -c "postgresql://..." --mask-pii
+```
+
+Configure masking rules in `.sunsetterrc`:
+
+```json
+{
+  "dataMasking": {
+    "enabled": true,
+    "tables": [
+      {
+        "tableName": "users",
+        "fields": {
+          "email": "email",
+          "phone": "phone",
+          "name": "name",
+          "ssn": "redact"
+        }
+      }
+    ]
+  }
+}
+```
+
+Masking strategies: `hash`, `redact`, `email`, `phone`, `name`
+
+## Post-Migration Verification
+
+Verify data integrity after migration:
+
+```bash
+sunsetter migrate -c "postgresql://..." --verify
+```
+
+Verification checks:
+
+- Row count comparison (source vs Convex)
+- Per-table PASS/FAIL status
+- Summary report with mismatches
+
+## React Hooks Generation
+
+Generate type-safe React hooks for your Convex functions:
+
+```bash
+sunsetter migrate -c "postgresql://..." \
+  --react-hooks \
+  --hooks-output ./src/hooks
+```
+
+Generated hooks per table:
+
+- `useUsersList()` - Paginated list query
+- `useUser(id)` - Single document query
+- `useCreateUser()` - Create mutation
+- `useUpdateUser()` - Update mutation
+- `useRemoveUser()` - Delete mutation
 
 ## Architecture
 

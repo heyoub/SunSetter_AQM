@@ -97,6 +97,81 @@ export interface SunsetterConfig {
     /** Enable log rotation */
     rotate?: boolean;
   };
+
+  /** Slack notification settings */
+  notifications?: {
+    /** Slack webhook URL */
+    slackWebhook?: string;
+    /** Notify on migration start */
+    notifyOnStart?: boolean;
+    /** Notify on migration complete */
+    notifyOnComplete?: boolean;
+    /** Notify on migration failure */
+    notifyOnFailure?: boolean;
+    /** Notify on each table complete (can be noisy) */
+    notifyOnTableComplete?: boolean;
+    /** Custom username for Slack messages */
+    slackUsername?: string;
+    /** Custom icon emoji for Slack messages */
+    slackIconEmoji?: string;
+  };
+
+  /** Data masking settings for PII/GDPR compliance */
+  dataMasking?: {
+    /** Enable data masking */
+    enabled?: boolean;
+    /** Masking rules per table */
+    rules?: Array<{
+      table: string;
+      fields: Record<string, 'hash' | 'redact' | 'email' | 'phone' | 'name'>;
+    }>;
+    /** Seed for deterministic masking */
+    seed?: string;
+  };
+
+  /** Migration hooks */
+  hooks?: {
+    /** Commands to run before migration starts */
+    preMigration?: Array<{
+      command: string;
+      cwd?: string;
+      continueOnError?: boolean;
+    }>;
+    /** Commands to run after successful migration */
+    postMigrationSuccess?: Array<{
+      command: string;
+      cwd?: string;
+      continueOnError?: boolean;
+    }>;
+    /** Commands to run after failed migration */
+    postMigrationFailure?: Array<{
+      command: string;
+      cwd?: string;
+      continueOnError?: boolean;
+    }>;
+  };
+
+  /** Post-migration verification settings */
+  verification?: {
+    /** Enable post-migration verification */
+    enabled?: boolean;
+    /** Number of sample rows to spot-check per table */
+    sampleSize?: number;
+    /** Skip verification for tables with more rows than this */
+    skipLargeTableThreshold?: number;
+  };
+
+  /** React hooks generation settings */
+  reactHooks?: {
+    /** Generate React hooks */
+    enabled?: boolean;
+    /** Output directory for hooks */
+    outputDir?: string;
+    /** Generate separate files per table */
+    separateFiles?: boolean;
+    /** Generate optimistic update helpers */
+    optimisticUpdates?: boolean;
+  };
 }
 
 export interface LoadedConfig {
@@ -334,6 +409,38 @@ export function mergeConfig(
   if (cliOptions.verbose !== undefined) {
     merged.output = merged.output || {};
     merged.output.verbose = cliOptions.verbose as boolean;
+  }
+
+  // Slack webhook
+  if (cliOptions.slackWebhook) {
+    merged.notifications = merged.notifications || {};
+    merged.notifications.slackWebhook = cliOptions.slackWebhook as string;
+    merged.notifications.notifyOnStart = true;
+    merged.notifications.notifyOnComplete = true;
+    merged.notifications.notifyOnFailure = true;
+  }
+
+  // Data masking
+  if (cliOptions.maskPii !== undefined) {
+    merged.dataMasking = merged.dataMasking || {};
+    merged.dataMasking.enabled = cliOptions.maskPii as boolean;
+  }
+
+  // Verification
+  if (cliOptions.verify !== undefined) {
+    merged.verification = merged.verification || {};
+    merged.verification.enabled = cliOptions.verify as boolean;
+  }
+
+  // React hooks
+  if (cliOptions.reactHooks !== undefined) {
+    merged.reactHooks = merged.reactHooks || {};
+    merged.reactHooks.enabled = cliOptions.reactHooks as boolean;
+  }
+
+  if (cliOptions.hooksOutput) {
+    merged.reactHooks = merged.reactHooks || {};
+    merged.reactHooks.outputDir = cliOptions.hooksOutput as string;
   }
 
   return merged;

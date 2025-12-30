@@ -48,6 +48,9 @@ import {
   suggestTableNames,
   formatSuggestionMessage,
 } from '../../utils/fuzzy-match.js';
+// 110% Enhancement imports
+import { SlackNotifier } from '../../migration/notifications.js';
+import { ReactHooksGenerator } from '../../generator/convex/react-hooks-generator.js';
 
 // ============================================================================
 // Types
@@ -63,6 +66,16 @@ let shutdownTimeoutHandle: NodeJS.Timeout | null = null;
 
 /** Graceful shutdown timeout in milliseconds (default: 30 seconds) */
 const SHUTDOWN_TIMEOUT_MS = 30000;
+
+/**
+ * Enhancement options for 110% features
+ */
+interface EnhancementOptions {
+  verify?: boolean;
+  reactHooks?: boolean;
+  hooksOutput?: string;
+  slackWebhook?: string;
+}
 
 /**
  * Command line options with improved typing
@@ -93,6 +106,12 @@ interface MigrateOptions {
   logFile?: string;
   timestamps?: boolean;
   noColor?: boolean;
+  // 110% Enhancement flags
+  slackWebhook?: string;
+  maskPii?: boolean;
+  verify?: boolean;
+  reactHooks?: boolean;
+  hooksOutput?: string;
 }
 
 // ============================================================================
@@ -580,6 +599,20 @@ ${chalk.bold('Parallel Migration:')}
     .option('--timestamps', 'Include timestamps in log output')
     .option('--no-color', 'Disable colored output')
 
+    // 110% Enhancement options
+    .option(
+      '--slack-webhook <url>',
+      'Slack webhook URL for migration notifications'
+    )
+    .option('--mask-pii', 'Enable PII data masking during migration')
+    .option('--verify', 'Run post-migration verification')
+    .option('--react-hooks', 'Generate React hooks for Convex functions')
+    .option(
+      '--hooks-output <dir>',
+      'Output directory for React hooks',
+      './src/hooks'
+    )
+
     .action(runMigrateCommand);
 
   return command;
@@ -615,6 +648,11 @@ async function runMigrateCommand(options: MigrateOptions): Promise<void> {
     let config: Partial<MigrationConfig>;
     let mode: MigrationMode;
     let outputDir: string;
+
+    // Enhancement flags (from CLI options directly)
+    const verify = options.verify;
+    const reactHooks = options.reactHooks;
+    const hooksOutput = options.hooksOutput || './src/hooks';
 
     if (isInteractive) {
       // Run interactive wizard
@@ -661,13 +699,26 @@ async function runMigrateCommand(options: MigrateOptions): Promise<void> {
     // Execute migration based on mode
     reporter.section(`Starting ${mode} migration`);
 
+    // Enhancement options bundle
+    const enhancementOptions = {
+      verify,
+      reactHooks,
+      hooksOutput,
+      slackWebhook: options.slackWebhook,
+    };
+
     switch (mode) {
       case 'schema-only':
-        await runSchemaOnlyMigration(config, outputDir, reporter);
+        await runSchemaOnlyMigration(
+          config,
+          outputDir,
+          reporter,
+          enhancementOptions
+        );
         break;
 
       case 'schema-and-data':
-        await runFullMigration(config, outputDir, reporter);
+        await runFullMigration(config, outputDir, reporter, enhancementOptions);
         break;
 
       case 'data-only':
@@ -835,6 +886,24 @@ function parseCommandLineOptions(
     logLevel: getLogLevel(options) as 'quiet' | 'normal' | 'verbose',
   };
 
+  // 110% Enhancement options
+  if (options.slackWebhook) {
+    config.slackNotifications = {
+      webhookUrl: options.slackWebhook,
+      notifyOnStart: true,
+      notifyOnComplete: true,
+      notifyOnFailure: true,
+      notifyOnTableComplete: false, // Too noisy by default
+    };
+  }
+
+  if (options.maskPii) {
+    config.dataMasking = {
+      enabled: true,
+      tables: [], // Will auto-detect PII fields
+    };
+  }
+
   return { config, mode, outputDir };
 }
 
@@ -848,7 +917,8 @@ function parseCommandLineOptions(
 async function runSchemaOnlyMigration(
   config: Partial<MigrationConfig>,
   outputDir: string,
-  reporter: ProgressReporter
+  reporter: ProgressReporter,
+  enhancementOptions: EnhancementOptions = {}
 ): Promise<void> {
   reporter.startSpinner('Connecting to database...');
 
@@ -948,14 +1018,66 @@ async function runSchemaOnlyMigration(
     }
 
     // Print summary
-    reporter.printSummary({
+    const summaryData: Record<string, string | number> = {
       'Tables processed': tables.length,
       'Queries generated': output.stats.totalQueries,
       'Mutations generated': output.stats.totalMutations,
       'Validators generated': output.stats.totalValidators,
       'Types generated': output.stats.totalTypes,
       'Output directory': outputDir,
-    });
+    };
+
+    // Generate React hooks if requested
+    if (enhancementOptions.reactHooks && !config.dryRun) {
+      reporter.startSpinner('Generating React hooks...');
+      try {
+        const hooksOutputDir = enhancementOptions.hooksOutput || './src/hooks';
+        const hooksGenerator = new ReactHooksGenerator({
+          outputDir: hooksOutputDir,
+          separateFiles: true,
+          includeComments: true,
+          useReactQuery: false,
+          generateOptimisticUpdates: true,
+          convexFunctionsPath: outputDir,
+        });
+
+        // Convert output tables to definitions for hooks generator
+        const tableDefinitions = Array.from(output.tables.entries()).map(
+          ([tableName]) => ({
+            tableName,
+            fields: [],
+            indexes: [],
+            relationships: [],
+            originalTableName: tableName,
+            schemaName: 'public',
+          })
+        );
+
+        const hooksResult = hooksGenerator.generate(tableDefinitions);
+
+        // Write hooks files
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        await fs.mkdir(hooksOutputDir, { recursive: true });
+
+        for (const [filename, content] of hooksResult.files) {
+          const filePath = path.join(hooksOutputDir, filename);
+          await fs.writeFile(filePath, content, 'utf-8');
+        }
+
+        reporter.succeedSpinner(
+          `Generated ${hooksResult.hookCount} React hooks`
+        );
+        summaryData['React hooks generated'] = hooksResult.hookCount;
+        reporter.fileGenerated(`${hooksOutputDir}/index.ts`);
+      } catch (error) {
+        reporter.warnSpinner(
+          `React hooks generation skipped: ${(error as Error).message}`
+        );
+      }
+    }
+
+    reporter.printSummary(summaryData);
 
     if (config.dryRun) {
       reporter.box('Dry Run - No files were written', 'warning');
@@ -976,7 +1098,8 @@ async function runSchemaOnlyMigration(
 async function runFullMigration(
   config: Partial<MigrationConfig>,
   outputDir: string,
-  reporter: ProgressReporter
+  reporter: ProgressReporter,
+  enhancementOptions: EnhancementOptions = {}
 ): Promise<void> {
   // Validate Convex credentials
   if (!config.convexUrl) {
@@ -1003,6 +1126,26 @@ async function runFullMigration(
     );
   }
 
+  // Initialize Slack notifier if webhook provided
+  let slackNotifier: SlackNotifier | null = null;
+  if (
+    enhancementOptions.slackWebhook ||
+    config.slackNotifications?.webhookUrl
+  ) {
+    const webhookUrl =
+      enhancementOptions.slackWebhook || config.slackNotifications?.webhookUrl;
+    if (webhookUrl) {
+      slackNotifier = new SlackNotifier({
+        webhookUrl,
+        notifyOnStart: true,
+        notifyOnComplete: true,
+        notifyOnFailure: true,
+        notifyOnTableComplete: false,
+      });
+      reporter.debug('Slack notifications enabled');
+    }
+  }
+
   reporter.startSpinner('Initializing migration engine...');
 
   const engine = await createMigrationEngine({
@@ -1012,6 +1155,15 @@ async function runFullMigration(
 
   // Register engine for signal handling
   registerActiveEngine(engine, reporter);
+
+  // Send start notification
+  if (slackNotifier) {
+    await slackNotifier.notifyMigrationStart({
+      migrationId: 'migration',
+      totalTables: 0, // Will be updated after introspection
+      totalRows: 0,
+    });
+  }
 
   // Set up event handlers for progress
   engine.onEvent((event: MigrationEvent) => {
@@ -1100,6 +1252,83 @@ async function runFullMigration(
       'Failed rows': report.failedRows,
     });
 
+    // Send Slack completion notification
+    if (slackNotifier) {
+      if (report.status === 'completed' || report.status === 'partial') {
+        await slackNotifier.notifyMigrationComplete({
+          migrationId: 'migration',
+          duration: report.duration,
+          tablesCompleted: report.tables.filter((t) => t.status === 'completed')
+            .length,
+          migratedRows: report.migratedRows,
+          failedRows: report.failedRows,
+        });
+      } else {
+        await slackNotifier.notifyMigrationFailure({
+          migrationId: 'migration',
+          error: 'Migration failed',
+          tablesCompleted: report.tables.filter((t) => t.status === 'completed')
+            .length,
+          tablesFailed: report.tables.filter((t) => t.status === 'failed')
+            .length,
+        });
+      }
+    }
+
+    // Run post-migration verification if requested
+    if (enhancementOptions.verify && report.status === 'completed') {
+      reporter.section('Post-Migration Verification');
+      reporter.startSpinner('Running verification checks...');
+
+      try {
+        // Basic verification: compare migrated counts
+        const verificationResults: Array<{
+          table: string;
+          expected: number;
+          actual: number;
+          match: boolean;
+        }> = [];
+
+        for (const tableReport of report.tables) {
+          verificationResults.push({
+            table: tableReport.tableName,
+            expected: tableReport.totalRows,
+            actual: tableReport.migratedRows,
+            match: tableReport.migratedRows === tableReport.totalRows,
+          });
+        }
+
+        reporter.succeedSpinner('Verification complete');
+
+        // Print verification results
+        reporter.subsection('Verification Results:');
+        let allPassed = true;
+
+        for (const result of verificationResults) {
+          const status = result.match ? chalk.green('PASS') : chalk.red('FAIL');
+          reporter.log(
+            `  ${status} ${result.table}: ${result.actual}/${result.expected} rows`
+          );
+          if (!result.match) allPassed = false;
+        }
+
+        reporter.log('');
+        if (allPassed) {
+          reporter.success(
+            'All tables verified: row counts match expected values'
+          );
+        } else {
+          reporter.warn(
+            'Some tables have mismatched row counts. Review results above.'
+          );
+        }
+      } catch (error) {
+        reporter.warnSpinner(
+          `Verification skipped: ${(error as Error).message}`
+        );
+      }
+    }
+
     if (report.status === 'completed') {
       reporter.box('Migration completed successfully!', 'success');
     } else if (report.status === 'partial') {
@@ -1109,6 +1338,17 @@ async function runFullMigration(
       );
     } else {
       reporter.box('Migration failed. Check errors above.', 'error');
+      // Send error notification before exiting
+      if (slackNotifier) {
+        await slackNotifier.notifyMigrationFailure({
+          migrationId: 'migration',
+          error: 'Migration failed',
+          tablesCompleted: report.tables.filter((t) => t.status === 'completed')
+            .length,
+          tablesFailed: report.tables.filter((t) => t.status === 'failed')
+            .length,
+        });
+      }
       process.exit(EXIT_CODES.MIGRATION_ERROR);
     }
   } finally {

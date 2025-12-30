@@ -143,7 +143,11 @@ describe('IdMapper', () => {
     });
 
     it('should handle loading when no file exists', async () => {
-      const nonExistentPath = path.join(tempDir, 'nonexistent', 'mappings.json');
+      const nonExistentPath = path.join(
+        tempDir,
+        'nonexistent',
+        'mappings.json'
+      );
       const mapper = new IdMapper({ persistPath: nonExistentPath });
 
       // Should not throw
@@ -165,5 +169,4 @@ describe('IdMapper', () => {
       expect(mapper.get('comments', 1)).toBe('convex_comment_1');
     });
   });
-
 });

@@ -194,16 +194,16 @@ export class PostgreSQLAdapter extends BaseAdapter {
       // Test connection by acquiring and releasing a client
       const client = await this.pool.connect();
       await client.query('SELECT 1');
+      client.release();
+
+      // Mark as connected BEFORE calling getPostgreSQLVersion (which uses query())
+      this.connected = true;
 
       // Get and log PostgreSQL version
       const versionInfo = await this.getPostgreSQLVersion();
       console.log(
         `[PostgreSQL] Connected to ${versionInfo.name} ${versionInfo.version} (${versionInfo.fullVersion})`
       );
-
-      client.release();
-
-      this.connected = true;
     } catch (error) {
       this.pool = null;
       this.connected = false;

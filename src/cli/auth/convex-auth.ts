@@ -13,7 +13,6 @@ import * as http from 'http';
 import * as https from 'https';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
 import { URL } from 'url';
 import chalk from 'chalk';
 import open from 'open';
@@ -78,7 +77,8 @@ export async function detectExistingCredentials(): Promise<AuthResult | null> {
 
 function checkEnvVars(): ConvexCredentials | null {
   const deploymentUrl = process.env.CONVEX_URL || process.env.CONVEX_DEPLOYMENT;
-  const deployKey = process.env.CONVEX_DEPLOY_KEY || process.env.CONVEX_ADMIN_KEY;
+  const deployKey =
+    process.env.CONVEX_DEPLOY_KEY || process.env.CONVEX_ADMIN_KEY;
 
   if (deploymentUrl && deployKey) {
     return { deploymentUrl, deployKey };
@@ -86,7 +86,9 @@ function checkEnvVars(): ConvexCredentials | null {
   return null;
 }
 
-async function checkEnvFile(filename: string): Promise<ConvexCredentials | null> {
+async function checkEnvFile(
+  filename: string
+): Promise<ConvexCredentials | null> {
   const filepath = path.join(process.cwd(), filename);
 
   try {
@@ -141,7 +143,7 @@ async function checkConvexJson(): Promise<ConvexCredentials | null> {
 // Browser-Based Authentication
 // ============================================================================
 
-const CONVEX_DASHBOARD = 'https://dashboard.convex.dev';
+// const CONVEX_DASHBOARD = 'https://dashboard.convex.dev';
 const CALLBACK_TIMEOUT_MS = 300000; // 5 minutes
 
 /**
@@ -168,11 +170,11 @@ export async function authenticateViaBrowser(
       }
 
       const port = address.port;
-      const callbackUrl = `http://127.0.0.1:${port}/callback`;
+      // const callbackUrl = `http://127.0.0.1:${port}/callback`;
 
       // The auth URL - Convex doesn't have a direct OAuth flow for CLI,
       // so we'll guide users to the dashboard and have them paste credentials
-      const authUrl = `${CONVEX_DASHBOARD}/deployment/settings`;
+      // const authUrl = `${CONVEX_DASHBOARD}/deployment/settings`;
 
       onStatusChange?.('Starting authentication server...');
 
@@ -256,7 +258,7 @@ export async function authenticateViaBrowser(
 // HTML Templates
 // ============================================================================
 
-function getInputHtml(port: number): string {
+function getInputHtml(_port: number): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -485,14 +487,14 @@ export async function validateCredentials(
         path: '/api/list_tables',
         method: 'POST',
         headers: {
-          'Authorization': `Convex ${credentials.deployKey}`,
+          Authorization: `Convex ${credentials.deployKey}`,
           'Content-Type': 'application/json',
         },
       };
 
       const req = https.request(options, (res) => {
         let data = '';
-        res.on('data', (chunk) => data += chunk);
+        res.on('data', (chunk) => (data += chunk));
         res.on('end', () => {
           if (res.statusCode === 200) {
             resolve({
@@ -522,9 +524,11 @@ export async function validateCredentials(
         req.destroy();
         resolve({ valid: false, error: 'Connection timed out' });
       }, 10000);
-
     } catch (err) {
-      resolve({ valid: false, error: `Invalid URL: ${(err as Error).message}` });
+      resolve({
+        valid: false,
+        error: `Invalid URL: ${(err as Error).message}`,
+      });
     }
   });
 }
@@ -559,7 +563,9 @@ export async function authenticateConvex(
       const validation = await validateCredentials(existing.credentials);
 
       if (validation.valid) {
-        onStatusChange?.(`Connected to ${validation.projectInfo?.name || 'Convex'}!`);
+        onStatusChange?.(
+          `Connected to ${validation.projectInfo?.name || 'Convex'}!`
+        );
         return existing;
       } else {
         onStatusChange?.(`Existing credentials invalid: ${validation.error}`);
@@ -572,7 +578,10 @@ export async function authenticateConvex(
     return authenticateViaBrowser({ onStatusChange });
   }
 
-  return { success: false, error: 'No credentials found and browser auth skipped' };
+  return {
+    success: false,
+    error: 'No credentials found and browser auth skipped',
+  };
 }
 
 /**
@@ -593,7 +602,11 @@ export async function saveCredentials(
     // Remove existing Convex vars
     content = content
       .split('\n')
-      .filter(line => !line.startsWith('CONVEX_URL=') && !line.startsWith('CONVEX_DEPLOY_KEY='))
+      .filter(
+        (line) =>
+          !line.startsWith('CONVEX_URL=') &&
+          !line.startsWith('CONVEX_DEPLOY_KEY=')
+      )
       .join('\n');
 
     if (content && !content.endsWith('\n')) {

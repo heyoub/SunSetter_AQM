@@ -30,6 +30,7 @@ export class WelcomeScreen {
   private sunIndex = 0;
   private animationInterval: NodeJS.Timeout | null = null;
   private resolvePromise: ((result: WelcomeResult) => void) | null = null;
+  private sunBox: blessed.Widgets.BoxElement | null = null;
 
   constructor() {
     this.screen = blessed.screen({
@@ -203,7 +204,7 @@ export class WelcomeScreen {
     menuList.focus();
 
     // Store sunBox for animation
-    (this as any).sunBox = sunBox;
+    this.sunBox = sunBox;
 
     this.screen.render();
   }
@@ -214,9 +215,8 @@ export class WelcomeScreen {
   private startAnimation(): void {
     this.animationInterval = setInterval(() => {
       this.sunIndex = (this.sunIndex + 1) % SUN_FRAMES.length;
-      const sunBox = (this as any).sunBox;
-      if (sunBox) {
-        sunBox.setContent(SUN_FRAMES[this.sunIndex]);
+      if (this.sunBox) {
+        this.sunBox.setContent(SUN_FRAMES[this.sunIndex]);
         this.screen.render();
       }
     }, 200);

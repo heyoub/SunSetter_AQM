@@ -89,12 +89,10 @@ import { SQLiteAdapter } from './sqlite.js';
  * This allows for lazy loading of adapters - they're only imported
  * when actually needed, reducing initial bundle size.
  *
- * Note: We use `unknown` for the constructor type to allow different
- * specific config types per adapter (PostgreSQLConfig, MySQLConfig, etc.)
+ * Note: We use `DatabaseConfig` for the constructor type.
  * The factory function ensures type safety at runtime.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AdapterClass = new (config: any) => DatabaseAdapter;
+type AdapterClass = new (config: DatabaseConfig) => DatabaseAdapter;
 
 const adapterRegistry: Partial<Record<DatabaseType, AdapterClass>> = {
   // Register MSSQL adapter

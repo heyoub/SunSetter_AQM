@@ -679,9 +679,7 @@ Supports: PostgreSQL, MySQL, SQLite, SQL Server
                 console.log(
                   chalk.dim(`  Project: ${validation.projectInfo?.name}`)
                 );
-                console.log(
-                  chalk.dim(`  Source: ${existing.source}`)
-                );
+                console.log(chalk.dim(`  Source: ${existing.source}`));
               } else {
                 console.log(chalk.red('✗ Credentials found but invalid'));
                 console.log(chalk.dim(`  Error: ${validation.error}`));
@@ -698,7 +696,9 @@ Supports: PostgreSQL, MySQL, SQLite, SQL Server
               );
             } else {
               console.log(chalk.yellow('⚠ No Convex credentials found'));
-              console.log(chalk.dim('  Run `sunsetter-aqm auth` to authenticate'));
+              console.log(
+                chalk.dim('  Run `sunsetter-aqm auth` to authenticate')
+              );
             }
             process.exit(1);
           }
@@ -706,7 +706,7 @@ Supports: PostgreSQL, MySQL, SQLite, SQL Server
           // Full authentication flow
           const result = await authenticateConvex({
             forceNew: options.force,
-            onStatusChange: (status) => {
+            onStatusChange: (status: string) => {
               if (!options.json) {
                 console.log(status);
               }
@@ -733,8 +733,12 @@ Supports: PostgreSQL, MySQL, SQLite, SQL Server
                 );
               } else {
                 console.log();
-                console.log(chalk.green('✓ Successfully authenticated with Convex!'));
-                console.log(chalk.dim(`  Project: ${validation.projectInfo?.name}`));
+                console.log(
+                  chalk.green('✓ Successfully authenticated with Convex!')
+                );
+                console.log(
+                  chalk.dim(`  Project: ${validation.projectInfo?.name}`)
+                );
                 console.log(chalk.dim(`  Credentials saved to .env.local`));
               }
             } else {

@@ -688,7 +688,7 @@ export const webhook = httpAction(async (ctx, request) => {
 
     // 2. Parse webhook payload
     const contentType = request.headers.get("content-type") ?? "";
-    let payload: any;
+    let payload: unknown;
 
     if (contentType.includes("application/json")) {
       payload = await request.json();
@@ -700,7 +700,11 @@ export const webhook = httpAction(async (ctx, request) => {
     }
 
     // 3. Extract event type (customize based on provider)
-    const eventType = payload.type ?? payload.event ?? payload.action ?? "unknown";
+    const eventType =
+      (payload as Record<string, any>)?.type ??
+      (payload as Record<string, any>)?.event ??
+      (payload as Record<string, any>)?.action ??
+      "unknown";
 
     console.log(\`Received webhook event: \${eventType}\`, { payload });
 

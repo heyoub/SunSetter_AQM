@@ -1,4 +1,4 @@
-import { DatabaseConnection } from '../config/database.js';
+import { IDatabaseConnection } from '../config/database.js';
 
 export interface ColumnInfo {
   columnName: string;
@@ -159,7 +159,7 @@ export interface MultiSchemaOptions {
 }
 
 export class SchemaIntrospector {
-  constructor(private db: DatabaseConnection) {}
+  constructor(private db: IDatabaseConnection) {}
 
   async introspectSchema(schemaName: string = 'public'): Promise<SchemaInfo> {
     const tables = await this.getTables(schemaName);

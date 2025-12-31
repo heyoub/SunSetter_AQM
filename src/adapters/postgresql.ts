@@ -57,10 +57,10 @@ export class PostgreSQLAdapter extends BaseAdapter {
   private pool: Pool | null = null;
   private poolConfig: PoolConfig;
 
-  constructor(config: PostgreSQLConfig) {
+  constructor(config: DatabaseConfig) {
     super({ ...config, type: DatabaseType.POSTGRESQL });
 
-    this.poolConfig = this.buildPoolConfig(config);
+    this.poolConfig = this.buildPoolConfig(config as PostgreSQLConfig);
   }
 
   /**

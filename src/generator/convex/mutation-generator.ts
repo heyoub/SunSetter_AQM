@@ -456,7 +456,7 @@ export const batchRemove = mutation({
  * import { useMutation } from "convex/react";
  * import { api } from "./_generated/api";
  *
- * function Upsert${pascalName}({ ${fieldName}, data }: { ${fieldName}: string, data: any }) {
+ * function Upsert${pascalName}({ ${fieldName}, data }: { ${fieldName}: string, data: Record<string, unknown> }) {
  *   const upsert${pascalName} = useMutation(api.${tableName}.upsert);
  *
  *   const handleUpsert = async () => {

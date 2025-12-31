@@ -739,15 +739,22 @@ export class MySQLAdapter extends BaseAdapter {
       };
     }
 
-    // mysql2 pool exposes these properties
-    const pool = this.pool as any;
+    // mysql2 pool exposes these properties internally
+    const pool = this.pool as unknown as {
+      pool: {
+        _allConnections?: unknown[];
+        _freeConnections?: unknown[];
+        _connectionQueue?: unknown[];
+      };
+    };
+    const internalPool = pool.pool;
     return {
-      totalConnections: pool._allConnections?.length ?? 0,
+      totalConnections: internalPool._allConnections?.length ?? 0,
       activeConnections:
-        (pool._allConnections?.length ?? 0) -
-        (pool._freeConnections?.length ?? 0),
-      idleConnections: pool._freeConnections?.length ?? 0,
-      waitingRequests: pool._connectionQueue?.length ?? 0,
+        (internalPool._allConnections?.length ?? 0) -
+        (internalPool._freeConnections?.length ?? 0),
+      idleConnections: internalPool._freeConnections?.length ?? 0,
+      waitingRequests: internalPool._connectionQueue?.length ?? 0,
     };
   }
 

@@ -391,18 +391,18 @@ export const processDocument = action({
 // Helper functions for document processing
 // Replace these with your actual implementations
 
-async function analyzeWithAI(doc: any) {
+async function analyzeWithAI(doc: Record<string, unknown>) {
   // Example: Call OpenAI, Claude, or other AI APIs
   // const response = await fetch("https://api.openai.com/v1/...", {...});
   return { analysis: "AI analysis placeholder", confidence: 0.95 };
 }
 
-async function validateExternal(doc: any) {
+async function validateExternal(doc: Record<string, unknown>) {
   // Example: Validate with external service
   return { valid: true, checks: ["format", "completeness"] };
 }
 
-async function enrichData(doc: any) {
+async function enrichData(doc: Record<string, unknown>) {
   // Example: Enrich with third-party data
   return { enriched: true, additionalFields: {} };
 }`;

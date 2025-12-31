@@ -21,9 +21,12 @@ import {
 } from '../../adapters/index.js';
 import {
   SchemaIntrospector,
-  TableInfo,
+  type TableInfo,
 } from '../../introspector/schema-introspector.js';
-import { DatabaseConnection } from '../../config/database.js';
+import {
+  type IDatabaseConnection,
+  type EnhancedPoolConfig,
+} from '../../config/database.js';
 import {
   MigrationEngine,
   createMigrationEngine,
@@ -237,10 +240,12 @@ function unregisterActiveEngine(): void {
 /**
  * Create a DatabaseConnection wrapper for a Pool
  */
-function createDbConnectionWrapper(pool: Pool): DatabaseConnection {
+function createDbConnectionWrapper(pool: Pool): IDatabaseConnection {
   return {
-    pool,
-    config: {} as any,
+    async query<T>(sql: string, params?: unknown[]): Promise<T[]> {
+      const result = await pool.query(sql, params);
+      return result.rows as T[];
+    },
     async testConnection(): Promise<boolean> {
       try {
         await pool.query('SELECT 1');
@@ -252,14 +257,23 @@ function createDbConnectionWrapper(pool: Pool): DatabaseConnection {
     async close(): Promise<void> {
       await pool.end();
     },
-    getConfig() {
-      return {} as any;
+    getConfig(): Omit<EnhancedPoolConfig, 'password'> {
+      const poolWithConfig = pool as Pool & {
+        options?: {
+          host?: string;
+          port?: number;
+          database?: string;
+          user?: string;
+        };
+      };
+      return {
+        host: poolWithConfig.options?.host || 'unknown',
+        port: poolWithConfig.options?.port || 5432,
+        database: poolWithConfig.options?.database || 'unknown',
+        username: poolWithConfig.options?.user || 'unknown',
+      } as Omit<EnhancedPoolConfig, 'password'>;
     },
-    async query<T>(sql: string, params?: unknown[]): Promise<T[]> {
-      const result = await pool.query(sql, params);
-      return result.rows as T[];
-    },
-  } as unknown as DatabaseConnection;
+  };
 }
 
 /**

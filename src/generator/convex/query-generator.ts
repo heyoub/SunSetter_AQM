@@ -134,7 +134,7 @@ export const get = query({
   args: {
     id: v.id("${tableName}"),
   },
-  handler: async (ctx, args): Promise<typeof ctx.db extends { get: (table: "${tableName}", id: Id<"${tableName}">) => Promise<infer T> } ? T : any> => {
+  handler: async (ctx, args): Promise<typeof ctx.db extends { get: (table: "${tableName}", id: Id<"${tableName}">) => Promise<infer T> } ? T : unknown> => {
     return await ${getCall};
   },
 });`;

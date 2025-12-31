@@ -20,6 +20,10 @@ import type { TableInfo } from '../introspector/schema-introspector.js';
 import { SchemaIntrospector } from '../introspector/schema-introspector.js';
 import type { MigrationConfig } from '../migration/types.js';
 import { ProgressReporter } from './progress/reporter.js';
+import {
+  type IDatabaseConnection,
+  type EnhancedPoolConfig,
+} from '../config/database.js';
 
 // ============================================================================
 // Types
@@ -188,9 +192,11 @@ async function testConnection(
     reporter.updateSpinner('Connected. Introspecting schema...');
 
     // Create a minimal connection wrapper for the introspector
-    const dbConnection = {
-      pool,
-      config: {} as any,
+    const dbConnection: IDatabaseConnection = {
+      async query<T>(sql: string, params?: unknown[]): Promise<T[]> {
+        const result = await pool.query(sql, params);
+        return result.rows as T[];
+      },
       async testConnection(): Promise<boolean> {
         try {
           await pool.query('SELECT 1');
@@ -202,17 +208,26 @@ async function testConnection(
       async close(): Promise<void> {
         await pool.end();
       },
-      getConfig() {
-        return {} as any;
-      },
-      async query<T>(sql: string, params?: unknown[]): Promise<T[]> {
-        const result = await pool.query(sql, params);
-        return result.rows as T[];
+      getConfig(): Omit<EnhancedPoolConfig, 'password'> {
+        const poolWithConfig = pool as Pool & {
+          options?: {
+            host?: string;
+            port?: number;
+            database?: string;
+            user?: string;
+          };
+        };
+        return {
+          host: poolWithConfig.options?.host || 'unknown',
+          port: poolWithConfig.options?.port || 5432,
+          database: poolWithConfig.options?.database || 'unknown',
+          username: poolWithConfig.options?.user || 'unknown',
+        } as Omit<EnhancedPoolConfig, 'password'>;
       },
     };
 
     // Introspect schema to get tables
-    const introspector = new SchemaIntrospector(dbConnection as any);
+    const introspector = new SchemaIntrospector(dbConnection);
     const schema = await introspector.introspectSchema('public');
 
     reporter.succeedSpinner(
@@ -361,7 +376,9 @@ export class InteractiveWizard {
 
       // Handle user cancellation (Ctrl+C in inquirer)
       if (
-        (error as any).isTtyError ||
+        (error instanceof Error &&
+          'isTtyError' in error &&
+          (error as Record<string, unknown>).isTtyError === true) ||
         (error as Error).message.includes('canceled')
       ) {
         console.log();

@@ -97,7 +97,7 @@ const config = {
     database: 'mydb',
     user: 'postgres',
     password: 'password',
-    ssl: true,  // Recommended for production
+    ssl: true, // Recommended for production
   }),
   convex: {
     deploymentUrl: process.env.CONVEX_URL,
@@ -145,14 +145,14 @@ async function preMigrationCheck() {
 
     if (features.warnings.length > 0) {
       console.log(`\nTable: ${table}`);
-      features.warnings.forEach(warning => console.log(`  ${warning}`));
+      features.warnings.forEach((warning) => console.log(`  ${warning}`));
     }
   }
 
   // Check for enums
   const enums = await adapter.getEnumTypes('public');
   console.log(`\nFound ${enums.length} enum types:`);
-  enums.forEach(e => {
+  enums.forEach((e) => {
     console.log(`  ${e.enumName}: [${e.enumValues.join(', ')}]`);
   });
 
@@ -163,6 +163,7 @@ preMigrationCheck();
 ```
 
 **Expected Output**:
+
 ```
 PostgreSQL Version: Amazon Aurora PostgreSQL 14.6
 
@@ -187,11 +188,13 @@ Found 3 enum types:
 ### Partitioned Tables
 
 **What to do**:
+
 1. Understand your partition strategy
 2. Decide if merging is acceptable
 3. Consider Convex's natural sharding (no manual partitioning needed)
 
 **Example**:
+
 ```sql
 -- PostgreSQL: Partitioned by date
 CREATE TABLE orders (
@@ -209,22 +212,24 @@ CREATE TABLE orders_2024 PARTITION OF orders
 ```
 
 **After migration**: All partitions merged into single Convex table. Add index on `orderDate` for efficient queries:
+
 ```typescript
 export default defineTable({
   orderId: v.number(),
-  orderDate: v.number(),  // Unix timestamp
+  orderDate: v.number(), // Unix timestamp
   total: v.number(),
-})
-  .index("orderDate", ["orderDate"]);  // Auto-suggested by 110%!
+}).index('orderDate', ['orderDate']); // Auto-suggested by 110%!
 ```
 
 ### Materialized Views
 
 **What to do**:
+
 1. Migrate as regular table (read-only)
 2. Implement refresh logic in Convex
 
 **Example**:
+
 ```sql
 -- PostgreSQL: Materialized view
 CREATE MATERIALIZED VIEW sales_summary AS
@@ -237,38 +242,42 @@ GROUP BY customer_id;
 ```
 
 **After migration**: Create Convex scheduled function for refresh:
+
 ```typescript
 // convex/crons.ts
-import { cronJobs } from "convex/server";
-import { internal } from "./_generated/api";
+import { cronJobs } from 'convex/server';
+import { internal } from './_generated/api';
 
 const crons = cronJobs();
 
 crons.interval(
-  "refresh sales summary",
-  { hours: 1 },  // Refresh every hour
+  'refresh sales summary',
+  { hours: 1 }, // Refresh every hour
   internal.salesSummary.refresh
 );
 
 export default crons;
 
 // convex/salesSummary.ts
-import { internalMutation } from "./_generated/server";
+import { internalMutation } from './_generated/server';
 
 export const refresh = internalMutation({
   handler: async (ctx) => {
     // Delete old data
-    const oldSummaries = await ctx.db.query("salesSummary").collect();
+    const oldSummaries = await ctx.db.query('salesSummary').collect();
     for (const summary of oldSummaries) {
       await ctx.db.delete(summary._id);
     }
 
     // Recompute
-    const orders = await ctx.db.query("orders").collect();
+    const orders = await ctx.db.query('orders').collect();
     const summaryMap = new Map<string, { count: number; total: number }>();
 
     for (const order of orders) {
-      const existing = summaryMap.get(order.customerId) || { count: 0, total: 0 };
+      const existing = summaryMap.get(order.customerId) || {
+        count: 0,
+        total: 0,
+      };
       summaryMap.set(order.customerId, {
         count: existing.count + 1,
         total: existing.total + order.total,
@@ -277,7 +286,7 @@ export const refresh = internalMutation({
 
     // Insert new data
     for (const [customerId, stats] of summaryMap) {
-      await ctx.db.insert("salesSummary", {
+      await ctx.db.insert('salesSummary', {
         customerId,
         orderCount: stats.count,
         totalSpent: stats.total,
@@ -290,10 +299,12 @@ export const refresh = internalMutation({
 ### Foreign Tables
 
 **What to do**:
+
 1. These tables will be SKIPPED
 2. Implement external API calls in Convex actions
 
 **Example**:
+
 ```sql
 -- PostgreSQL: Foreign table (MySQL FDW)
 CREATE FOREIGN TABLE external_customers (
@@ -304,10 +315,11 @@ CREATE FOREIGN TABLE external_customers (
 ```
 
 **After migration**: Create Convex action to query external source:
+
 ```typescript
 // convex/externalCustomers.ts
-import { action } from "./_generated/server";
-import { v } from "convex/values";
+import { action } from './_generated/server';
+import { v } from 'convex/values';
 
 export const getExternalCustomer = action({
   args: { id: v.number() },
@@ -370,6 +382,7 @@ migrate();
 ```
 
 **Expected Output**:
+
 ```
 Phase 1: Introspecting schema...
 [PostgreSQL] Connected to Amazon Aurora PostgreSQL 14.6
@@ -420,43 +433,38 @@ Copy the generated index code and add to your schema:
 
 ```typescript
 // convex/schema.ts
-import { defineSchema, defineTable } from "convex/server";
-import { v } from "convex/values";
+import { defineSchema, defineTable } from 'convex/server';
+import { v } from 'convex/values';
 
 export default defineSchema({
   orders: defineTable({
     orderId: v.number(),
-    customerId: v.id("customers"),
+    customerId: v.id('customers'),
     createdAt: v.number(),
     status: v.union(
-      v.literal("pending"),
-      v.literal("processing"),
-      v.literal("shipped"),
-      v.literal("delivered"),
-      v.literal("cancelled")
+      v.literal('pending'),
+      v.literal('processing'),
+      v.literal('shipped'),
+      v.literal('delivered'),
+      v.literal('cancelled')
     ),
-    total: v.number().gt(0),  // Check constraint auto-converted!
+    total: v.number().gt(0), // Check constraint auto-converted!
   })
-    .index("orderCustomerId", ["customerId"])  // Auto-suggested!
-    .index("orderCreatedAt", ["createdAt"])     // Auto-suggested!
-    .index("orderStatus", ["status"]),          // Auto-suggested!
+    .index('orderCustomerId', ['customerId']) // Auto-suggested!
+    .index('orderCreatedAt', ['createdAt']) // Auto-suggested!
+    .index('orderStatus', ['status']), // Auto-suggested!
 
   users: defineTable({
-    email: v.string().lte(255),  // Check constraint auto-converted!
-    age: v.number().gte(18).lte(120),  // Check constraint auto-converted!
-    role: v.union(
-      v.literal("admin"),
-      v.literal("user"),
-      v.literal("guest")
-    ),
-  })
-    .index("userEmail", ["email"]),  // Auto-suggested!
+    email: v.string().lte(255), // Check constraint auto-converted!
+    age: v.number().gte(18).lte(120), // Check constraint auto-converted!
+    role: v.union(v.literal('admin'), v.literal('user'), v.literal('guest')),
+  }).index('userEmail', ['email']), // Auto-suggested!
 
   products: defineTable({
     name: v.string(),
-    categoryPath: v.string(),  // ltree extension mapped!
-    attributes: v.any(),        // hstore extension mapped!
-    price: v.number().gt(0),   // Check constraint auto-converted!
+    categoryPath: v.string(), // ltree extension mapped!
+    attributes: v.any(), // hstore extension mapped!
+    price: v.number().gt(0), // Check constraint auto-converted!
   }),
 });
 ```
@@ -469,13 +477,13 @@ The 110% check constraint conversion ensures data integrity. Test it:
 
 ```typescript
 // Test in Convex dashboard
-import { mutation } from "./_generated/server";
-import { v } from "convex/values";
+import { mutation } from './_generated/server';
+import { v } from 'convex/values';
 
 export const testConstraints = mutation({
   args: {
-    age: v.number().gte(18).lte(120),  // Auto-converted constraint!
-    price: v.number().gt(0),           // Auto-converted constraint!
+    age: v.number().gte(18).lte(120), // Auto-converted constraint!
+    price: v.number().gt(0), // Auto-converted constraint!
   },
   handler: async (ctx, { age, price }) => {
     // Try invalid values:
@@ -500,6 +508,7 @@ Use the Convex dashboard to verify indexes are working:
 4. Add additional indexes if needed
 
 **Example Query Performance**:
+
 ```
 Before index: 2500ms (full table scan)
 After index:  15ms (index scan)
@@ -512,6 +521,7 @@ After index:  15ms (index scan)
 ### Scenario 1: E-commerce with Extension Types
 
 **PostgreSQL**:
+
 ```sql
 CREATE EXTENSION ltree;
 CREATE EXTENSION hstore;
@@ -526,6 +536,7 @@ CREATE TABLE products (
 ```
 
 **Migration Result**:
+
 ```typescript
 products: defineTable({
   id: v.number(),
@@ -537,23 +548,25 @@ products: defineTable({
 ```
 
 **Usage in Convex**:
+
 ```typescript
 // Query by category path (ltree)
 const laptops = await ctx.db
-  .query("products")
-  .filter(q => q.eq(q.field("categoryPath"), "Electronics.Computers.Laptops"))
+  .query('products')
+  .filter((q) => q.eq(q.field('categoryPath'), 'Electronics.Computers.Laptops'))
   .collect();
 
 // Query by attribute (hstore)
 const redProducts = await ctx.db
-  .query("products")
-  .filter(q => q.eq(q.field("attributes").color, "red"))
+  .query('products')
+  .filter((q) => q.eq(q.field('attributes').color, 'red'))
   .collect();
 ```
 
 ### Scenario 2: SaaS with User Roles
 
 **PostgreSQL**:
+
 ```sql
 CREATE TYPE user_role AS ENUM ('admin', 'manager', 'user', 'guest');
 
@@ -570,6 +583,7 @@ CREATE INDEX idx_users_role ON users(role);
 ```
 
 **Migration Result** (100% automatic):
+
 ```typescript
 users: defineTable({
   id: v.number(),
@@ -590,6 +604,7 @@ users: defineTable({
 ### Scenario 3: Analytics with Partitioned Tables
 
 **PostgreSQL**:
+
 ```sql
 CREATE TABLE events (
   id SERIAL,
@@ -607,12 +622,14 @@ CREATE TABLE events_2024 PARTITION OF events
 ```
 
 **Migration Output**:
+
 ```
 WARNING: Table "events" is a PARTITIONED TABLE (strategy: RANGE, key: created_at).
 Convex does not support table partitioning. All partitions will be merged.
 ```
 
 **Migration Result**:
+
 ```typescript
 events: defineTable({
   id: v.number(),
@@ -634,11 +651,13 @@ events: defineTable({
 ### Issue: Enum not auto-detected
 
 **Symptoms**:
+
 ```
 [Schema Introspector] Auto-detected 0 enum type(s) in schema "public"
 ```
 
 **Solution**:
+
 ```sql
 -- Verify enum exists
 SELECT typname FROM pg_type WHERE typtype = 'e';
@@ -651,6 +670,7 @@ WHERE t.typtype = 'e';
 ```
 
 If enum is in different schema, adjust migration config:
+
 ```typescript
 await introspector.introspectSchema('your_schema');
 ```
@@ -658,17 +678,21 @@ await introspector.introspectSchema('your_schema');
 ### Issue: Extension type not recognized
 
 **Symptoms**:
+
 ```
 ERROR: Unknown PostgreSQL type: ltree
 ```
 
 **Solution**:
+
 1. Ensure extension is installed:
+
 ```sql
 CREATE EXTENSION IF NOT EXISTS ltree;
 ```
 
 2. Verify extension types are in the type mapper:
+
 ```typescript
 // Should be in POSTGRESQL_TYPES map
 console.log(POSTGRES_TO_CONVEX_MAP['ltree']);
@@ -676,6 +700,7 @@ console.log(POSTGRES_TO_CONVEX_MAP['ltree']);
 ```
 
 3. If custom extension, add manual mapping:
+
 ```typescript
 typeMapper.registerCustomMapping('custom_type', 'v.string()');
 ```
@@ -683,6 +708,7 @@ typeMapper.registerCustomMapping('custom_type', 'v.string()');
 ### Issue: Check constraint not converted
 
 **Symptoms**:
+
 ```
 WARNING: Complex constraint - manual conversion required
 ```
@@ -696,9 +722,9 @@ export const createRecord = mutation({
   args: { column1: v.number(), column2: v.number() },
   handler: async (ctx, args) => {
     if (args.column1 <= args.column2 * 2) {
-      throw new Error("column1 must be > column2 * 2");
+      throw new Error('column1 must be > column2 * 2');
     }
-    await ctx.db.insert("table", args);
+    await ctx.db.insert('table', args);
   },
 });
 ```
@@ -708,34 +734,42 @@ export const createRecord = mutation({
 ## Best Practices
 
 ### 1. Always Run Pre-Migration Checks
+
 ```bash
 npm run pre-migration-check
 ```
 
 ### 2. Review All Warnings
+
 Don't ignore warnings—understand them and plan accordingly.
 
 ### 3. Test with Small Dataset First
+
 ```typescript
 const engine = new MigrationEngine({
   ...config,
   options: {
-    rowLimit: 1000,  // Test with 1000 rows first
+    rowLimit: 1000, // Test with 1000 rows first
   },
 });
 ```
 
 ### 4. Use Index Suggestions
+
 The 110% generator analyzes your schema—trust it!
 
 ### 5. Monitor Convex Dashboard
+
 After migration, check:
+
 - Query performance
 - Index usage
 - Error rates
 
 ### 6. Document Custom Conversions
+
 If you manually convert complex constraints or materialized views, document them:
+
 ```typescript
 // convex/README.md
 ## Custom Conversions
@@ -754,6 +788,7 @@ If you manually convert complex constraints or materialized views, document them
 ## Conclusion
 
 With 110% features, your migration is:
+
 - ✅ Fully automated (enums, constraints, indexes)
 - ✅ Fully monitored (version, warnings, errors)
 - ✅ Fully optimized (index suggestions)
@@ -762,6 +797,7 @@ With 110% features, your migration is:
 **You're ready to migrate ANY PostgreSQL database to Convex!** 🚀
 
 For support, refer to:
+
 - `ENHANCEMENTS_110_PERCENT.md` - Technical details
 - `QUICK_REFERENCE_110.md` - Quick lookup
 - `ARCHITECTURE_110.md` - System architecture

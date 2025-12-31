@@ -184,23 +184,22 @@ export class TUIApp {
     console.log(chalk.cyan('What would you like to do?'));
     console.log();
 
-    const migrationMode = await selectFromList<'schema-and-data' | 'schema-only' | 'data-only'>(
-      '',
-      [
-        {
-          name: 'Schema + Data - Generate Convex schema AND migrate all data',
-          value: 'schema-and-data',
-        },
-        {
-          name: 'Schema Only - Generate Convex schema, queries, mutations (no data)',
-          value: 'schema-only',
-        },
-        {
-          name: 'Data Only - Migrate data to existing Convex schema',
-          value: 'data-only',
-        },
-      ]
-    );
+    const migrationMode = await selectFromList<
+      'schema-and-data' | 'schema-only' | 'data-only'
+    >('', [
+      {
+        name: 'Schema + Data - Generate Convex schema AND migrate all data',
+        value: 'schema-and-data',
+      },
+      {
+        name: 'Schema Only - Generate Convex schema, queries, mutations (no data)',
+        value: 'schema-only',
+      },
+      {
+        name: 'Data Only - Migrate data to existing Convex schema',
+        value: 'data-only',
+      },
+    ]);
 
     this.config.mode = migrationMode;
 
@@ -234,10 +233,18 @@ export class TUIApp {
       } else if (err.message.includes('authentication')) {
         console.log(chalk.yellow('  Hint: Check username and password'));
       } else if (err.message.includes('SSL') || err.message.includes('ssl')) {
-        console.log(chalk.yellow('  Hint: Try adding ?sslmode=require to your connection string'));
+        console.log(
+          chalk.yellow(
+            '  Hint: Try adding ?sslmode=require to your connection string'
+          )
+        );
       }
       console.log();
-      console.log(chalk.dim(`  Connection string received: ${connectionString.substring(0, 50)}...`));
+      console.log(
+        chalk.dim(
+          `  Connection string received: ${connectionString.substring(0, 50)}...`
+        )
+      );
       console.log('\nPress any key to return...');
       await this.waitForKey();
       await this.start();
@@ -248,7 +255,9 @@ export class TUIApp {
     console.log(chalk.cyan('⏳ Introspecting schema...'));
 
     const schemas = await adapter.getSchemas();
-    const targetSchema = schemas.includes('public') ? 'public' : schemas[0] || 'main';
+    const targetSchema = schemas.includes('public')
+      ? 'public'
+      : schemas[0] || 'main';
     const tableNames = await adapter.getTables(targetSchema);
 
     // Build table info for selector
@@ -316,7 +325,9 @@ export class TUIApp {
 
       const convexCreds = await this.getConvexCredentials();
       if (!convexCreds) {
-        console.log(chalk.yellow('\nConvex authentication skipped. Doing schema-only.'));
+        console.log(
+          chalk.yellow('\nConvex authentication skipped. Doing schema-only.')
+        );
         this.config.mode = 'schema-only';
       } else {
         convexUrl = convexCreds.url;
@@ -325,7 +336,10 @@ export class TUIApp {
     }
 
     // Step 6: Output directory
-    const outputDir = await textInput('Output directory for generated Convex files', './convex');
+    const outputDir = await textInput(
+      'Output directory for generated Convex files',
+      './convex'
+    );
 
     // Run migration with simple console output (blessed dashboard crashes on Windows)
     await this.runSimpleMigration({
@@ -439,9 +453,13 @@ export class TUIApp {
   /**
    * Get Convex credentials using the smart auth flow
    */
-  private async getConvexCredentials(): Promise<{ url: string; deployKey: string } | null> {
+  private async getConvexCredentials(): Promise<{
+    url: string;
+    deployKey: string;
+  } | null> {
     // Check for existing credentials first
-    let existing: Awaited<ReturnType<typeof detectExistingCredentials>> | null = null;
+    let existing: Awaited<ReturnType<typeof detectExistingCredentials>> | null =
+      null;
     try {
       existing = await detectExistingCredentials();
     } catch (err) {
@@ -454,7 +472,10 @@ export class TUIApp {
       console.log(chalk.dim(`  URL: ${existing.credentials.deploymentUrl}`));
       console.log();
 
-      const useExisting = await confirm('Use these existing credentials?', true);
+      const useExisting = await confirm(
+        'Use these existing credentials?',
+        true
+      );
 
       if (useExisting) {
         // Validate them
@@ -480,27 +501,24 @@ export class TUIApp {
     console.log(chalk.cyan('How would you like to authenticate?'));
     console.log();
 
-    const authMethod = await selectFromList<string>(
-      '',
-      [
-        {
-          name: 'Open browser (recommended) - Opens Convex dashboard in your browser',
-          value: 'browser',
-        },
-        {
-          name: 'Enter manually - Paste credentials from the dashboard',
-          value: 'manual',
-        },
-        {
-          name: 'Skip - Do schema-only migration (no data)',
-          value: 'skip',
-        },
-      ]
-    );
+    const authMethod = await selectFromList<string>('', [
+      {
+        name: 'Open browser (recommended) - Opens Convex dashboard in your browser',
+        value: 'browser',
+      },
+      {
+        name: 'Enter manually - Paste credentials from the dashboard',
+        value: 'manual',
+      },
+      {
+        name: 'Skip - Do schema-only migration (no data)',
+        value: 'skip',
+      },
+    ]);
 
     if (authMethod === 'browser') {
       const result = await authenticateConvex({
-        onStatusChange: (status) => console.log(status),
+        onStatusChange: (status: string) => console.log(status),
       });
 
       if (result.success && result.credentials) {
@@ -518,10 +536,17 @@ export class TUIApp {
     } else if (authMethod === 'manual') {
       console.log();
       console.log(chalk.cyan('📋 Get your credentials from:'));
-      console.log(chalk.dim('   https://dashboard.convex.dev → Your Project → Settings → Deploy Keys'));
+      console.log(
+        chalk.dim(
+          '   https://dashboard.convex.dev → Your Project → Settings → Deploy Keys'
+        )
+      );
       console.log();
 
-      const url = await textInput('Deployment URL', 'https://your-project.convex.cloud');
+      const url = await textInput(
+        'Deployment URL',
+        'https://your-project.convex.cloud'
+      );
       const deployKey = await passwordInput('Deploy Key');
 
       // Validate
@@ -568,27 +593,33 @@ export class TUIApp {
     }
 
     console.log();
-    console.log(chalk.cyan('How would you like to enter database credentials?'));
+    console.log(
+      chalk.cyan('How would you like to enter database credentials?')
+    );
     console.log();
 
     // Use number-based selection (works on all terminals)
-    const inputMethod = await selectFromList<string>(
-      '',
-      [
-        { name: 'Enter details separately (recommended)', value: 'separate' },
-        { name: 'Paste full connection string', value: 'paste' },
-        { name: 'SQLite file path', value: 'sqlite' },
-      ]
-    );
+    const inputMethod = await selectFromList<string>('', [
+      { name: 'Enter details separately (recommended)', value: 'separate' },
+      { name: 'Paste full connection string', value: 'paste' },
+      { name: 'SQLite file path', value: 'sqlite' },
+    ]);
 
     if (inputMethod === 'sqlite') {
-      const filepath = await textInput('SQLite database file path', './database.db');
+      const filepath = await textInput(
+        'SQLite database file path',
+        './database.db'
+      );
       return `sqlite:///${filepath}`;
     }
 
     if (inputMethod === 'paste') {
       console.log();
-      console.log(chalk.yellow('Tip: If paste gets mangled, restart and choose "Enter details separately"'));
+      console.log(
+        chalk.yellow(
+          'Tip: If paste gets mangled, restart and choose "Enter details separately"'
+        )
+      );
       console.log();
 
       const connectionString = await textInput('Connection string');
@@ -596,7 +627,9 @@ export class TUIApp {
         parseConnectionString(connectionString.trim());
         return connectionString.trim();
       } catch (err) {
-        console.log(chalk.red(`Invalid connection string: ${(err as Error).message}`));
+        console.log(
+          chalk.red(`Invalid connection string: ${(err as Error).message}`)
+        );
         return this.promptForConnection(); // Retry
       }
     }
@@ -606,20 +639,18 @@ export class TUIApp {
     console.log(chalk.cyan('Select database type:'));
     console.log();
 
-    const dbType = await selectFromList<string>(
-      '',
-      [
-        { name: 'PostgreSQL', value: 'postgresql' },
-        { name: 'MySQL', value: 'mysql' },
-        { name: 'SQL Server', value: 'mssql' },
-      ]
-    );
+    const dbType = await selectFromList<string>('', [
+      { name: 'PostgreSQL', value: 'postgresql' },
+      { name: 'MySQL', value: 'mysql' },
+      { name: 'SQL Server', value: 'mssql' },
+    ]);
 
     console.log();
     console.log(chalk.cyan('Enter connection details:'));
     console.log();
 
-    const defaultPort = dbType === 'postgresql' ? '5432' : dbType === 'mysql' ? '3306' : '1433';
+    const defaultPort =
+      dbType === 'postgresql' ? '5432' : dbType === 'mysql' ? '3306' : '1433';
 
     const host = await textInput('Host', 'localhost');
     const port = await textInput('Port', defaultPort);
@@ -645,7 +676,11 @@ export class TUIApp {
     printLogo(); // Auto-responsive
     console.log();
     console.log(sunsetGradient('  Schema Generation Mode'));
-    console.log(chalk.dim('  Generate Convex schema, queries, mutations from your database.'));
+    console.log(
+      chalk.dim(
+        '  Generate Convex schema, queries, mutations from your database.'
+      )
+    );
     console.log();
 
     try {
@@ -653,7 +688,10 @@ export class TUIApp {
       const connectionString = await this.promptForConnection();
 
       // Get output directory
-      const outputDir = await textInput('Output directory for generated files', './convex');
+      const outputDir = await textInput(
+        'Output directory for generated files',
+        './convex'
+      );
 
       console.log();
       console.log(chalk.cyan('⏳ Connecting to database...'));
@@ -705,7 +743,9 @@ export class TUIApp {
       );
 
       if (selectedTables.length === 0) {
-        console.log(chalk.red('No tables selected. At least one table is required.'));
+        console.log(
+          chalk.red('No tables selected. At least one table is required.')
+        );
         await this.waitForKey();
         await this.start();
         return;
@@ -793,7 +833,10 @@ export class TUIApp {
         );
         console.log();
 
-        const runTypecheck = await confirm('Would you like to typecheck the generated code?', true);
+        const runTypecheck = await confirm(
+          'Would you like to typecheck the generated code?',
+          true
+        );
 
         if (runTypecheck) {
           console.log();
@@ -840,7 +883,9 @@ export class TUIApp {
     printLogo(); // Auto-responsive
     console.log();
     console.log(sunsetGradient('  Database Introspection Mode'));
-    console.log(chalk.dim('  Explore your database structure before migration.'));
+    console.log(
+      chalk.dim('  Explore your database structure before migration.')
+    );
     console.log();
 
     try {
@@ -1104,7 +1149,11 @@ export class TUIApp {
 
     console.log();
     console.log(sunsetGradient('  SunSetter AQM+ Help'));
-    console.log(chalk.dim('  ' + '─'.repeat(Math.min(40, process.stdout.columns - 4 || 40))));
+    console.log(
+      chalk.dim(
+        '  ' + '─'.repeat(Math.min(40, process.stdout.columns - 4 || 40))
+      )
+    );
     console.log();
 
     console.log(chalk.white('  Database to Convex migration tool.'));
@@ -1116,9 +1165,15 @@ export class TUIApp {
     console.log();
 
     console.log(chalk.cyan('  Migration Modes:'));
-    console.log(chalk.white('    1. Schema Only    ') + chalk.dim('Generate Convex files'));
-    console.log(chalk.white('    2. Schema + Data  ') + chalk.dim('Full migration'));
-    console.log(chalk.white('    3. Data Only      ') + chalk.dim('To existing schema'));
+    console.log(
+      chalk.white('    1. Schema Only    ') + chalk.dim('Generate Convex files')
+    );
+    console.log(
+      chalk.white('    2. Schema + Data  ') + chalk.dim('Full migration')
+    );
+    console.log(
+      chalk.white('    3. Data Only      ') + chalk.dim('To existing schema')
+    );
     console.log();
 
     console.log(chalk.cyan('  Features:'));

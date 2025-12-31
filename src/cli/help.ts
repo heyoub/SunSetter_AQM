@@ -19,8 +19,8 @@ import {
 export const HELP_HEADER = sunsetGradient(`
 ╔═══════════════════════════════════════════════════════════════════════════╗
 ║                                                                           ║
-║   ☀️  ${APP_NAME} v${VERSION}                                          ║
-║   ${APP_TAGLINE}                                    ║
+║   ☀️ ${APP_NAME} v${VERSION}                                              ║
+║   ${APP_TAGLINE}                                                          ║
 ║                                                                           ║
 ║   Database → Convex Migration Tool                                        ║
 ║   Supports: PostgreSQL · MySQL · SQLite · SQL Server                      ║

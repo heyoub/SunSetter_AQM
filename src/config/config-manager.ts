@@ -3,7 +3,7 @@ import { DatabaseConfig } from './database.js';
 import { GeneratorOptions } from '../generator/code-generator.js';
 import { TypeMappingOptions } from '../mapper/type-mapper.js';
 import dotenv from 'dotenv';
-import logger from '../utils/logger';
+import logger from '../utils/logger.js';
 
 export interface CodegenConfig {
   database: DatabaseConfig;
@@ -24,7 +24,10 @@ export class ConfigManager {
       const configContent = await fs.readFile(this.configPath, 'utf8');
       return JSON.parse(configContent);
     } catch (error) {
-      if ((error as any).code === 'ENOENT') {
+      if (
+        error instanceof Error &&
+        (error as NodeJS.ErrnoException).code === 'ENOENT'
+      ) {
         logger.warn('Config file does not exist. Using defaults.');
         return null;
       }

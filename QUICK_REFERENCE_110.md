@@ -3,42 +3,49 @@
 ## New PostgreSQL Extension Types Supported
 
 ### Hierarchical Data (ltree)
+
 ```sql
 -- PostgreSQL
 CREATE TABLE categories (
   path ltree  -- e.g., 'Top.Science.Astronomy'
 );
 ```
+
 ```typescript
 // Convex (auto-mapped)
-path: v.string()  // Materialized path format
+path: v.string(); // Materialized path format
 ```
 
 ### Key-Value Pairs (hstore)
+
 ```sql
 -- PostgreSQL
 CREATE TABLE products (
   attributes hstore  -- e.g., '"color" => "red", "size" => "large"'
 );
 ```
+
 ```typescript
 // Convex (auto-mapped)
-attributes: v.any()  // Object with string keys
+attributes: v.any(); // Object with string keys
 ```
 
 ### Multidimensional Cubes (cube)
+
 ```sql
 -- PostgreSQL
 CREATE TABLE measurements (
   dimensions cube  -- e.g., '(0,0,0),(1,1,1)'
 );
 ```
+
 ```typescript
 // Convex (auto-mapped)
-dimensions: v.string()  // Serialized cube format
+dimensions: v.string(); // Serialized cube format
 ```
 
 ### Book Identifiers (isbn/issn)
+
 ```sql
 -- PostgreSQL
 CREATE TABLE books (
@@ -46,6 +53,7 @@ CREATE TABLE books (
   issn issn13
 );
 ```
+
 ```typescript
 // Convex (auto-mapped)
 isbn13: v.string(),
@@ -57,15 +65,20 @@ issn: v.string()
 ## Auto-Enum Detection (NEW!)
 
 ### Before (Manual)
+
 ```typescript
 // You had to do this:
 const typeMapper = new ConvexTypeMapper();
 typeMapper.registerEnumMapping('order_status', [
-  'pending', 'processing', 'shipped', 'delivered'
+  'pending',
+  'processing',
+  'shipped',
+  'delivered',
 ]);
 ```
 
 ### After (Automatic)
+
 ```typescript
 // Now it just works! Enums are auto-detected:
 // Console output:
@@ -78,6 +91,7 @@ typeMapper.registerEnumMapping('order_status', [
 ## Advanced Table Detection
 
 ### Partitioned Tables
+
 ```sql
 CREATE TABLE orders (
   order_id SERIAL,
@@ -86,18 +100,21 @@ CREATE TABLE orders (
 ```
 
 **Output**:
+
 ```
 WARNING: Table "orders" is a PARTITIONED TABLE (strategy: RANGE, key: order_date).
 Convex does not support table partitioning. All partitions will be merged.
 ```
 
 ### Materialized Views
+
 ```sql
 CREATE MATERIALIZED VIEW sales_summary AS
 SELECT customer_id, SUM(total) FROM orders GROUP BY customer_id;
 ```
 
 **Output**:
+
 ```
 WARNING: "sales_summary" is a MATERIALIZED VIEW.
 This will be migrated as read-only data.
@@ -105,6 +122,7 @@ You need to implement refresh logic manually in Convex mutations.
 ```
 
 ### Foreign Tables
+
 ```sql
 CREATE FOREIGN TABLE remote_users (
   id INTEGER,
@@ -113,6 +131,7 @@ CREATE FOREIGN TABLE remote_users (
 ```
 
 **Output**:
+
 ```
 ERROR: "remote_users" is a FOREIGN TABLE (server: mysql_server).
 This table will be SKIPPED. Consider implementing external API calls in Convex.
@@ -123,47 +142,55 @@ This table will be SKIPPED. Consider implementing external API calls in Convex.
 ## Check Constraint Conversion
 
 ### Simple Ranges
+
 ```sql
 -- PostgreSQL
 CHECK (age >= 18 AND age <= 120)
 ```
+
 ```typescript
 // Convex (auto-converted)
-age: v.number().gte(18).lte(120)
+age: v.number().gte(18).lte(120);
 ```
 
 ### Price Validation
+
 ```sql
 -- PostgreSQL
 CHECK (price > 0)
 ```
+
 ```typescript
 // Convex (auto-converted)
-price: v.number().gt(0)
+price: v.number().gt(0);
 ```
 
 ### String Length
+
 ```sql
 -- PostgreSQL
 CHECK (length(username) <= 50)
 ```
+
 ```typescript
 // Convex (auto-converted)
-username: v.string().lte(50)
+username: v.string().lte(50);
 ```
 
 ### Enum-like IN Clause
+
 ```sql
 -- PostgreSQL
 CHECK (status IN ('active', 'inactive', 'pending'))
 ```
+
 ```typescript
 // Convex (auto-converted)
 status: v.union(
-  v.literal("active"),
-  v.literal("inactive"),
-  v.literal("pending")
-)
+  v.literal('active'),
+  v.literal('inactive'),
+  v.literal('pending')
+);
 ```
 
 ---
@@ -173,6 +200,7 @@ status: v.union(
 ### Automatic Index Generation
 
 After migration, you'll see:
+
 ```
 Convex Index Suggestions:
 
@@ -189,17 +217,18 @@ Convex Index Suggestions:
 ```
 
 ### Copy-Paste Ready Code
+
 ```typescript
 // Suggested indexes for orders
 export default defineTable({
-  customerId: v.id("customers"),
+  customerId: v.id('customers'),
   createdAt: v.number(),
   status: v.string(),
   // ... other fields
 })
-  .index("orderCustomerId", ["customerId"])
-  .index("orderCreatedAt", ["createdAt"])
-  .index("orderStatus", ["status"]);
+  .index('orderCustomerId', ['customerId'])
+  .index('orderCreatedAt', ['createdAt'])
+  .index('orderStatus', ['status']);
 ```
 
 ---
@@ -207,11 +236,13 @@ export default defineTable({
 ## Version Detection
 
 When you connect, you'll see:
+
 ```
 [PostgreSQL] Connected to Amazon Aurora PostgreSQL 14.6 (PostgreSQL 14.6 on x86_64...)
 ```
 
 Detects:
+
 - Amazon Aurora PostgreSQL
 - Supabase PostgreSQL
 - Azure Database for PostgreSQL
@@ -223,12 +254,15 @@ Detects:
 ## Expression Index Warnings
 
 ### Before
+
 ```sql
 CREATE INDEX idx_users_lower_email ON users(LOWER(email));
 ```
+
 Silent migration → index lost!
 
 ### After
+
 ```
 WARNING: Expression-based index detected: idx_users_lower_email
 Convex does not support expression indexes. Consider indexing the base column(s)
@@ -279,7 +313,7 @@ const result = convertCheckConstraint(
 import {
   generateConvexIndexSuggestions,
   formatIndexSuggestions,
-  generateConvexIndexCode
+  generateConvexIndexCode,
 } from './convex/index-suggestion-generator';
 
 const suggestions = generateConvexIndexSuggestions(table);
@@ -294,6 +328,7 @@ const code = generateConvexIndexCode(suggestions, table.tableName);
 ## Migration Workflow (110%)
 
 ### 1. Connect
+
 ```typescript
 const adapter = createPostgreSQLAdapter(config);
 await adapter.connect();
@@ -301,19 +336,23 @@ await adapter.connect();
 ```
 
 ### 2. Introspect
+
 ```typescript
 const schema = await introspector.introspectSchema('public');
 // Auto-detects enums, logs warnings for advanced features
 ```
 
 ### 3. Review Warnings
+
 Check console for:
+
 - ⚠️ Partitioned table warnings
 - ⚠️ Materialized view warnings
 - ❌ Foreign table errors
 - ⚠️ Expression index warnings
 
 ### 4. Generate Schema
+
 ```typescript
 const suggestions = generateConvexIndexSuggestions(table);
 const indexCode = generateConvexIndexCode(suggestions, table.tableName);
@@ -321,6 +360,7 @@ const indexCode = generateConvexIndexCode(suggestions, table.tableName);
 ```
 
 ### 5. Apply Constraint Validators
+
 ```typescript
 const constraints = convertColumnCheckConstraints(
   'age',
@@ -331,6 +371,7 @@ const constraints = convertColumnCheckConstraints(
 ```
 
 ### 6. Migrate
+
 ```typescript
 await migrationEngine.migrate();
 // With confidence that all features are handled!
@@ -341,6 +382,7 @@ await migrationEngine.migrate();
 ## Common Patterns
 
 ### Pattern 1: User Table with Email
+
 ```sql
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
@@ -352,19 +394,17 @@ CREATE INDEX idx_users_email ON users(email);
 ```
 
 **Auto-generated Convex schema**:
+
 ```typescript
 export default defineTable({
   email: v.string().lte(255),
   age: v.number().gte(18),
-  status: v.union(
-    v.literal("active"),
-    v.literal("inactive")
-  )
-})
-  .index("userEmail", ["email"]);
+  status: v.union(v.literal('active'), v.literal('inactive')),
+}).index('userEmail', ['email']);
 ```
 
 ### Pattern 2: Orders with Foreign Key
+
 ```sql
 CREATE TABLE orders (
   id SERIAL PRIMARY KEY,
@@ -377,21 +417,23 @@ CREATE INDEX idx_orders_created ON orders(created_at);
 ```
 
 **Auto-generated Convex schema**:
+
 ```typescript
 export default defineTable({
-  customerId: v.id("customers"),
+  customerId: v.id('customers'),
   createdAt: v.number(),
   status: v.union(
-    v.literal("pending"),
-    v.literal("shipped"),
-    v.literal("delivered")
-  )
+    v.literal('pending'),
+    v.literal('shipped'),
+    v.literal('delivered')
+  ),
 })
-  .index("orderCustomerId", ["customerId"])
-  .index("orderCreatedAt", ["createdAt"]);
+  .index('orderCustomerId', ['customerId'])
+  .index('orderCreatedAt', ['createdAt']);
 ```
 
 ### Pattern 3: Products with ltree Categories
+
 ```sql
 CREATE EXTENSION ltree;
 CREATE TABLE products (
@@ -403,11 +445,12 @@ CREATE TABLE products (
 ```
 
 **Auto-generated Convex schema**:
+
 ```typescript
 export default defineTable({
   name: v.string(),
-  categoryPath: v.string(),  // Materialized path
-  attributes: v.any()         // Key-value object
+  categoryPath: v.string(), // Materialized path
+  attributes: v.any(), // Key-value object
 });
 ```
 
@@ -416,7 +459,9 @@ export default defineTable({
 ## Troubleshooting
 
 ### Q: Enum not auto-detected?
+
 **A**: Check that the enum is in the correct schema:
+
 ```sql
 SELECT n.nspname, t.typname
 FROM pg_type t
@@ -425,25 +470,30 @@ WHERE t.typtype = 'e';
 ```
 
 ### Q: Partitioned table warning?
+
 **A**: Expected behavior. Review your partition strategy and ensure all partitions are accessible.
 
 ### Q: Materialized view refresh logic?
+
 **A**: Create a Convex scheduled function:
+
 ```typescript
 export const refreshSalesSummary = internalMutation({
   handler: async (ctx) => {
     // Implement refresh logic here
-  }
+  },
 });
 ```
 
 ### Q: Foreign table skipped?
+
 **A**: Create a Convex action to query the external source:
+
 ```typescript
 export const getRemoteUsers = action({
   handler: async (ctx) => {
     // Query external API/database
-  }
+  },
 });
 ```
 
@@ -462,6 +512,7 @@ export const getRemoteUsers = action({
 ## Support
 
 For complex migrations or custom requirements:
+
 - Check the full enhancement documentation: `ENHANCEMENTS_110_PERCENT.md`
 - Review source code with inline comments
 - Test with a staging database first

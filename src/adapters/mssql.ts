@@ -215,8 +215,11 @@ export class MssqlAdapter extends BaseAdapter {
           );
 
           // Add the parameter to the request
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          request.input(`p${index}`, this.getSqlType(param) as any, param);
+          request.input(
+            `p${index}`,
+            this.getSqlType(param) as sql.ISqlType,
+            param
+          );
         });
       }
 

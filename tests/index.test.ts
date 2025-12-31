@@ -41,7 +41,9 @@ describe('DatabaseTypeMapper', () => {
     });
 
     it('should map varchar to string validator', () => {
-      const result = mapper.mapColumn(createColumn('name', 'character varying'));
+      const result = mapper.mapColumn(
+        createColumn('name', 'character varying')
+      );
       expect(result.validator).toBe('v.string()');
       expect(result.typescript).toBe('string');
     });

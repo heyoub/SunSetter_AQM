@@ -119,10 +119,10 @@ export class SQLiteAdapter extends BaseAdapter {
   private db: DatabaseType | null = null;
   private sqliteConfig: SQLiteConfig;
 
-  constructor(config: SQLiteConfig) {
+  constructor(config: DatabaseConfig) {
     // Ensure type is set to SQLITE
     super({ ...config, type: DbType.SQLITE });
-    this.sqliteConfig = config;
+    this.sqliteConfig = config as SQLiteConfig;
   }
 
   // ============================================================================

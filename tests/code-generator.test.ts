@@ -1,6 +1,10 @@
 import { TypeMapper } from '../src/mapper/type-mapper';
 import { CodeGenerator } from '../src/generator/code-generator';
-import { SchemaInfo, TableInfo, ColumnInfo } from '../src/introspector/schema-introspector';
+import {
+  SchemaInfo,
+  TableInfo,
+  ColumnInfo,
+} from '../src/introspector/schema-introspector';
 
 describe('CodeGenerator', () => {
   let typeMapper: TypeMapper;
@@ -8,17 +12,20 @@ describe('CodeGenerator', () => {
 
   beforeEach(() => {
     typeMapper = new TypeMapper();
-    codeGenerator = new CodeGenerator({
-      outputDir: './test-output',
-      generateModels: true,
-      generateRepositories: true,
-      generateServices: true,
-      generateValidators: false,
-      generateConvexSchema: false,
-      generateMigrations: false,
-      useZod: false,
-      useClassValidator: false,
-    }, typeMapper);
+    codeGenerator = new CodeGenerator(
+      {
+        outputDir: './test-output',
+        generateModels: true,
+        generateRepositories: true,
+        generateServices: true,
+        generateValidators: false,
+        generateConvexSchema: false,
+        generateMigrations: false,
+        useZod: false,
+        useClassValidator: false,
+      },
+      typeMapper
+    );
   });
 
   describe('TypeMapper', () => {
@@ -121,7 +128,7 @@ describe('CodeGenerator', () => {
       ];
 
       const interfaceCode = typeMapper.generateTableInterface('users', columns);
-      
+
       expect(interfaceCode).toContain('export interface Users');
       expect(interfaceCode).toContain('id: number;');
       expect(interfaceCode).toContain('userName: string;');

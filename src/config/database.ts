@@ -99,7 +99,17 @@ export const DEFAULT_POOL_CONFIG: Readonly<Partial<EnhancedPoolConfig>> =
     healthCheckIntervalMs: 30000,
   });
 
-export class DatabaseConnection {
+/**
+ * Database connection interface for introspection and queries
+ */
+export interface IDatabaseConnection {
+  query<T = unknown>(text: string, params?: unknown[]): Promise<T[]>;
+  testConnection(): Promise<boolean>;
+  close(): Promise<void>;
+  getConfig(): Omit<EnhancedPoolConfig, 'password'>;
+}
+
+export class DatabaseConnection implements IDatabaseConnection {
   private pool: Pool;
   private config: EnhancedPoolConfig;
   private stats: {

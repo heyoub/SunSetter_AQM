@@ -378,12 +378,14 @@ created_at TIMESTAMP                   1. Type Mapping                    create
 ## Key Innovations (110%)
 
 ### 1. **Auto-Enum Pipeline**
+
 ```
 pg_enum → autoDetectEnumTypes() → Type Mapper → v.union() → schema.ts
 NO MANUAL WORK!
 ```
 
 ### 2. **Advanced Table Pipeline**
+
 ```
 pg_partitioned_table → detectAdvancedTableFeatures() → WARN user → Continue with caution
 pg_matviews          → detectAdvancedTableFeatures() → WARN user → Provide guidance
@@ -391,17 +393,20 @@ pg_foreign_table     → detectAdvancedTableFeatures() → ERROR    → SKIP tab
 ```
 
 ### 3. **Check Constraint Pipeline**
+
 ```
 pg_constraint → convertCheckConstraint() → Validator modifiers → Enhanced schema
 Examples: (age >= 18 AND age <= 120) → .gte(18).lte(120)
 ```
 
 ### 4. **Index Suggestion Pipeline**
+
 ```
 pg_indexes + FK analysis + Heuristics → generateConvexIndexSuggestions() → Priority ranking → Copy-paste code
 ```
 
 ### 5. **Extension Type Pipeline**
+
 ```
 ltree/hstore/cube/etc. → Database Type Mapper → Convex Type Mapper → Proper validators
 NO ERRORS, NO v.any() FALLBACKS!
@@ -412,17 +417,20 @@ NO ERRORS, NO v.any() FALLBACKS!
 ## Performance Characteristics
 
 ### Query Overhead
+
 - Version detection: **1 query on connect** (one-time)
 - Enum detection: **1 query per schema** (cached)
 - Advanced table detection: **3 queries per table** (only if needed)
 - Standard introspection: **Unchanged** (optimized)
 
 ### Memory Usage
+
 - Check constraint conversion: **Regex-based** (minimal memory)
 - Index suggestions: **Heuristic-based** (minimal memory)
 - Enum storage: **In-memory map** (negligible)
 
 ### Processing Time
+
 - Constraint conversion: **<1ms per constraint**
 - Index suggestions: **<5ms per table**
 - Enum detection: **<10ms per schema**

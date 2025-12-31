@@ -15,7 +15,6 @@ import {
   authenticateConvex,
   detectExistingCredentials,
   saveCredentials,
-  type ConvexCredentials,
 } from '../auth/convex-auth.js';
 
 /**
@@ -256,7 +255,7 @@ export class InteractiveWizard {
             value: 'manual',
           },
           {
-            name: '📄 I\'ll set environment variables - Skip for now',
+            name: "📄 I'll set environment variables - Skip for now",
             value: 'skip',
           },
         ],
@@ -271,7 +270,9 @@ export class InteractiveWizard {
     } else {
       // Skip - user will set env vars
       console.log();
-      console.log(chalk.yellow('⚠️  Remember to set these environment variables:'));
+      console.log(
+        chalk.yellow('⚠️  Remember to set these environment variables:')
+      );
       console.log(chalk.dim('   CONVEX_URL=https://your-project.convex.cloud'));
       console.log(chalk.dim('   CONVEX_DEPLOY_KEY=prod:your-deploy-key'));
       console.log();
@@ -282,9 +283,12 @@ export class InteractiveWizard {
   /**
    * Browser-based authentication flow
    */
-  private async authenticateWithBrowser(): Promise<{ url: string; deployKey: string }> {
+  private async authenticateWithBrowser(): Promise<{
+    url: string;
+    deployKey: string;
+  }> {
     const result = await authenticateConvex({
-      onStatusChange: (status) => console.log(status),
+      onStatusChange: (status: string) => console.log(status),
     });
 
     if (result.success && result.credentials) {
@@ -318,10 +322,17 @@ export class InteractiveWizard {
   /**
    * Manual credential entry
    */
-  private async getCredentialsManually(): Promise<{ url: string; deployKey: string }> {
+  private async getCredentialsManually(): Promise<{
+    url: string;
+    deployKey: string;
+  }> {
     console.log();
     console.log(chalk.cyan('📋 Get your credentials from:'));
-    console.log(chalk.dim('   https://dashboard.convex.dev → Your Project → Settings → Deploy Keys'));
+    console.log(
+      chalk.dim(
+        '   https://dashboard.convex.dev → Your Project → Settings → Deploy Keys'
+      )
+    );
     console.log();
 
     const answers = await inquirer.prompt([

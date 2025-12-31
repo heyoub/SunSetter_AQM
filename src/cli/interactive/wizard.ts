@@ -7,9 +7,16 @@
  */
 
 import inquirer from 'inquirer';
+import chalk from 'chalk';
 import type { TableInfo } from '../../introspector/schema-introspector.js';
 import type { MigrationConfig } from '../../migration/types.js';
 import { ProgressReporter } from '../progress/reporter.js';
+import {
+  authenticateConvex,
+  detectExistingCredentials,
+  saveCredentials,
+  type ConvexCredentials,
+} from '../auth/convex-auth.js';
 
 /**
  * Migration mode options
@@ -198,36 +205,134 @@ export class InteractiveWizard {
 
   /**
    * Step 3: Get Convex configuration
+   * Uses the smart auth flow: detect existing → browser auth → manual fallback
    */
   private async getConvexConfig(): Promise<{ url: string; deployKey: string }> {
-    // Check for environment variables
-    const envUrl = process.env.CONVEX_URL;
-    const envKey = process.env.CONVEX_DEPLOY_KEY;
+    // First, check for existing credentials
+    const existing = await detectExistingCredentials();
 
-    if (envUrl && envKey) {
-      const { useEnv } = await inquirer.prompt([
+    if (existing?.credentials?.deployKey) {
+      console.log();
+      console.log(chalk.green('✓') + ' Found existing Convex credentials');
+      console.log(chalk.dim(`  Source: ${existing.source}`));
+      console.log(chalk.dim(`  URL: ${existing.credentials.deploymentUrl}`));
+      console.log();
+
+      const { useExisting } = await inquirer.prompt([
         {
           type: 'confirm',
-          name: 'useEnv',
-          message: 'Found Convex credentials in environment. Use these?',
+          name: 'useExisting',
+          message: 'Use these existing credentials?',
           default: true,
         },
       ]);
 
-      if (useEnv) {
-        return { url: envUrl, deployKey: envKey };
+      if (useExisting) {
+        return {
+          url: existing.credentials.deploymentUrl,
+          deployKey: existing.credentials.deployKey,
+        };
       }
     }
+
+    // No existing credentials, offer auth methods
+    console.log();
+    console.log(chalk.cyan('🔐 Convex Authentication'));
+    console.log(chalk.dim('   You need Convex credentials to migrate data.'));
+    console.log();
+
+    const { authMethod } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'authMethod',
+        message: 'How would you like to authenticate?',
+        choices: [
+          {
+            name: '🌐 Open browser (recommended) - Opens Convex dashboard in your browser',
+            value: 'browser',
+          },
+          {
+            name: '⌨️  Enter manually - Paste credentials from the dashboard',
+            value: 'manual',
+          },
+          {
+            name: '📄 I\'ll set environment variables - Skip for now',
+            value: 'skip',
+          },
+        ],
+        default: 'browser',
+      },
+    ]);
+
+    if (authMethod === 'browser') {
+      return this.authenticateWithBrowser();
+    } else if (authMethod === 'manual') {
+      return this.getCredentialsManually();
+    } else {
+      // Skip - user will set env vars
+      console.log();
+      console.log(chalk.yellow('⚠️  Remember to set these environment variables:'));
+      console.log(chalk.dim('   CONVEX_URL=https://your-project.convex.cloud'));
+      console.log(chalk.dim('   CONVEX_DEPLOY_KEY=prod:your-deploy-key'));
+      console.log();
+      return { url: '', deployKey: '' };
+    }
+  }
+
+  /**
+   * Browser-based authentication flow
+   */
+  private async authenticateWithBrowser(): Promise<{ url: string; deployKey: string }> {
+    const result = await authenticateConvex({
+      onStatusChange: (status) => console.log(status),
+    });
+
+    if (result.success && result.credentials) {
+      // Offer to save credentials
+      const { saveToEnv } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'saveToEnv',
+          message: 'Save credentials to .env.local for future use?',
+          default: true,
+        },
+      ]);
+
+      if (saveToEnv) {
+        await saveCredentials(result.credentials);
+        console.log(chalk.green('✓') + ' Credentials saved to .env.local');
+      }
+
+      return {
+        url: result.credentials.deploymentUrl,
+        deployKey: result.credentials.deployKey,
+      };
+    } else {
+      console.log(chalk.red('✗') + ` Authentication failed: ${result.error}`);
+      console.log(chalk.dim('  Falling back to manual entry...'));
+      console.log();
+      return this.getCredentialsManually();
+    }
+  }
+
+  /**
+   * Manual credential entry
+   */
+  private async getCredentialsManually(): Promise<{ url: string; deployKey: string }> {
+    console.log();
+    console.log(chalk.cyan('📋 Get your credentials from:'));
+    console.log(chalk.dim('   https://dashboard.convex.dev → Your Project → Settings → Deploy Keys'));
+    console.log();
 
     const answers = await inquirer.prompt([
       {
         type: 'input',
         name: 'url',
-        message: 'Enter Convex deployment URL:',
+        message: 'Deployment URL:',
         default: 'https://your-project.convex.cloud',
         validate: (input: string) => {
           if (!input.includes('convex.cloud') && !input.includes('localhost')) {
-            return 'Please enter a valid Convex deployment URL';
+            return 'Please enter a valid Convex deployment URL (must contain convex.cloud)';
           }
           return true;
         },
@@ -235,16 +340,34 @@ export class InteractiveWizard {
       {
         type: 'password',
         name: 'deployKey',
-        message: 'Enter Convex deploy key:',
+        message: 'Deploy Key:',
         mask: '*',
         validate: (input: string) => {
           if (!input || input.length < 10) {
-            return 'Please enter a valid deploy key';
+            return 'Please enter a valid deploy key (should start with prod: or dev:)';
           }
           return true;
         },
       },
     ]);
+
+    // Offer to save
+    const { saveToEnv } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'saveToEnv',
+        message: 'Save credentials to .env.local?',
+        default: true,
+      },
+    ]);
+
+    if (saveToEnv) {
+      await saveCredentials({
+        deploymentUrl: answers.url,
+        deployKey: answers.deployKey,
+      });
+      console.log(chalk.green('✓') + ' Credentials saved to .env.local');
+    }
 
     return answers;
   }
@@ -297,16 +420,46 @@ export class InteractiveWizard {
    * Step 5: Get output directory
    */
   private async getOutputDir(): Promise<string> {
-    const { outputDir } = await inquirer.prompt([
+    const { outputChoice } = await inquirer.prompt([
       {
-        type: 'input',
-        name: 'outputDir',
-        message: 'Output directory for generated Convex code:',
+        type: 'list',
+        name: 'outputChoice',
+        message: 'Where should the generated Convex code be saved?',
+        choices: [
+          {
+            name: 'Standard (./convex) - Recommended for Convex projects',
+            value: './convex',
+          },
+          {
+            name: 'Safe Output (./out) - Prevents accidental deletion in dist/',
+            value: './out',
+          },
+          {
+            name: 'Custom Path - Enter a custom directory path',
+            value: 'custom',
+          },
+        ],
         default: './convex',
       },
     ]);
 
-    return outputDir;
+    if (outputChoice === 'custom') {
+      const { customPath } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'customPath',
+          message: 'Enter custom output directory:',
+          default: './generated-convex',
+          validate: (input: string) => {
+            if (!input.trim()) return 'Path cannot be empty';
+            return true;
+          },
+        },
+      ]);
+      return customPath;
+    }
+
+    return outputChoice;
   }
 
   /**

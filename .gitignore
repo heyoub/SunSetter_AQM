@@ -56,6 +56,8 @@ test.db
 
 # Generated output (for testing)
 convex/
+out/
+1/
 *.prisma
 pagila*.sql
 sakila.db

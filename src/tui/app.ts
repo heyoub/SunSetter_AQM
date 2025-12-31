@@ -7,15 +7,10 @@
  */
 
 import chalk from 'chalk';
-import inquirer from 'inquirer';
 import { printLogo, sunsetGradient, APP_NAME } from './branding.js';
 import { showWelcomeScreen } from './screens/welcome.js';
-import {
-  showTableSelector,
-  TableInfo as TableSelectorInfo,
-} from './screens/table-selector.js';
-import { createDashboard, Dashboard, TableStatus } from './dashboard.js';
-import { parseConnectionString } from '../adapters/index.js';
+import { TableInfo as TableSelectorInfo } from './screens/table-selector.js';
+import { parseConnectionString, createAdapter } from '../adapters/index.js';
 import { SchemaIntrospector } from '../introspector/schema-introspector.js';
 import { DatabaseConnection } from '../config/database.js';
 import { ConvexFunctionGenerator } from '../generator/convex/index.js';
@@ -24,6 +19,40 @@ import {
   typecheck,
   formatTypecheckResult,
 } from '../utils/typecheck.js';
+import {
+  authenticateConvex,
+  detectExistingCredentials,
+  saveCredentials,
+  validateCredentials,
+} from '../cli/auth/convex-auth.js';
+import {
+  textInput,
+  passwordInput,
+  confirm,
+  selectFromList,
+  multiSelectFromList,
+} from '../utils/terminal-input.js';
+
+/**
+ * Reset terminal to normal state after blessed screen closes
+ * blessed uses raw mode which can leave the terminal in a bad state
+ */
+function resetTerminalState(): void {
+  // Force terminal out of raw mode
+  if (process.stdin.isTTY && process.stdin.setRawMode) {
+    try {
+      process.stdin.setRawMode(false);
+    } catch {
+      // Ignore
+    }
+  }
+  // Resume stdin
+  if (process.stdin.isPaused()) {
+    process.stdin.resume();
+  }
+  // Write a reset sequence
+  process.stdout.write('\x1b[0m'); // Reset all attributes
+}
 
 // ============================================================================
 // Visual Helpers - Proper alignment with ANSI codes and emojis
@@ -94,7 +123,6 @@ export interface TUIConfig {
 
 export class TUIApp {
   private config: TUIConfig;
-  private dashboard: Dashboard | null = null;
 
   constructor(config: TUIConfig = {}) {
     this.config = config;
@@ -105,8 +133,15 @@ export class TUIApp {
    */
   public async start(): Promise<void> {
     try {
-      // Show welcome screen
+      // Show welcome screen (uses blessed which puts terminal in raw mode)
       const welcome = await showWelcomeScreen();
+
+      // CRITICAL: Reset terminal after blessed closes
+      // blessed raw mode can leave terminal in bad state causing doubled characters
+      resetTerminalState();
+
+      // Small delay to let terminal settle
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       switch (welcome.action) {
         case 'migrate':
@@ -139,240 +174,467 @@ export class TUIApp {
    * Run the migration flow
    */
   private async runMigration(): Promise<void> {
-    // For now, show a demo with mock data
-    // In production, this would connect to the actual database
-
     console.clear();
-    printLogo('neon');
-    console.log(sunsetGradient('\nPreparing migration...\n'));
+    printLogo(); // Auto-responsive
+    console.log();
+    console.log(sunsetGradient('  Migration Mode'));
+    console.log();
 
-    // Demo: Mock tables
-    const mockTables: TableSelectorInfo[] = [
-      {
-        name: 'users',
-        schema: 'public',
-        rowCount: 15000,
-        columnCount: 12,
-        hasPrimaryKey: true,
-        foreignKeyCount: 0,
-      },
-      {
-        name: 'posts',
-        schema: 'public',
-        rowCount: 50000,
-        columnCount: 8,
-        hasPrimaryKey: true,
-        foreignKeyCount: 2,
-      },
-      {
-        name: 'comments',
-        schema: 'public',
-        rowCount: 120000,
-        columnCount: 6,
-        hasPrimaryKey: true,
-        foreignKeyCount: 2,
-      },
-      {
-        name: 'likes',
-        schema: 'public',
-        rowCount: 500000,
-        columnCount: 4,
-        hasPrimaryKey: true,
-        foreignKeyCount: 2,
-      },
-      {
-        name: 'tags',
-        schema: 'public',
-        rowCount: 200,
-        columnCount: 3,
-        hasPrimaryKey: true,
-        foreignKeyCount: 0,
-      },
-      {
-        name: 'post_tags',
-        schema: 'public',
-        rowCount: 75000,
-        columnCount: 3,
-        hasPrimaryKey: true,
-        foreignKeyCount: 2,
-      },
-      {
-        name: 'settings',
-        schema: 'public',
-        rowCount: 15000,
-        columnCount: 5,
-        hasPrimaryKey: true,
-        foreignKeyCount: 1,
-      },
-      {
-        name: 'sessions',
-        schema: 'public',
-        rowCount: 8000,
-        columnCount: 7,
-        hasPrimaryKey: true,
-        foreignKeyCount: 1,
-      },
-    ];
+    // Step 1: Select migration mode (using number-based selection for Windows compatibility)
+    console.log(chalk.cyan('What would you like to do?'));
+    console.log();
 
-    // Show table selector
-    const selection = await showTableSelector(mockTables);
+    const migrationMode = await selectFromList<'schema-and-data' | 'schema-only' | 'data-only'>(
+      '',
+      [
+        {
+          name: 'Schema + Data - Generate Convex schema AND migrate all data',
+          value: 'schema-and-data',
+        },
+        {
+          name: 'Schema Only - Generate Convex schema, queries, mutations (no data)',
+          value: 'schema-only',
+        },
+        {
+          name: 'Data Only - Migrate data to existing Convex schema',
+          value: 'data-only',
+        },
+      ]
+    );
 
-    if (!selection.confirmed || selection.selectedTables.length === 0) {
-      console.log(chalk.yellow('\nMigration cancelled.\n'));
+    this.config.mode = migrationMode;
+
+    // Step 2: Get database connection
+    console.log();
+    console.log(chalk.cyan('━'.repeat(50)));
+    console.log(chalk.cyan.bold('  Step 1: Source Database Connection'));
+    console.log(chalk.cyan('━'.repeat(50)));
+    console.log();
+
+    const connectionString = await this.promptForConnection();
+
+    console.log();
+    console.log(chalk.cyan('⏳ Connecting to database...'));
+
+    // Parse and connect
+    const config = parseConnectionString(connectionString);
+    const adapter = createAdapter(config);
+
+    try {
+      await adapter.connect();
+      console.log(chalk.green('✓ Connected to database'));
+    } catch (error) {
+      const err = error as Error;
+      console.log(chalk.red('✗ Failed to connect'));
+      console.log(chalk.red(`  Error: ${err.message}`));
+      if (err.message.includes('ENOTFOUND')) {
+        console.log(chalk.yellow('  Hint: Check that the hostname is correct'));
+      } else if (err.message.includes('ECONNREFUSED')) {
+        console.log(chalk.yellow('  Hint: Database server may not be running'));
+      } else if (err.message.includes('authentication')) {
+        console.log(chalk.yellow('  Hint: Check username and password'));
+      } else if (err.message.includes('SSL') || err.message.includes('ssl')) {
+        console.log(chalk.yellow('  Hint: Try adding ?sslmode=require to your connection string'));
+      }
+      console.log();
+      console.log(chalk.dim(`  Connection string received: ${connectionString.substring(0, 50)}...`));
+      console.log('\nPress any key to return...');
+      await this.waitForKey();
+      await this.start();
+      return;
+    }
+
+    // Step 3: Introspect schema
+    console.log(chalk.cyan('⏳ Introspecting schema...'));
+
+    const schemas = await adapter.getSchemas();
+    const targetSchema = schemas.includes('public') ? 'public' : schemas[0] || 'main';
+    const tableNames = await adapter.getTables(targetSchema);
+
+    // Build table info for selector
+    const tableInfos: TableSelectorInfo[] = [];
+    for (const tableName of tableNames) {
+      const columns = await adapter.getColumns(targetSchema, tableName);
+      const foreignKeys = await adapter.getForeignKeys(targetSchema, tableName);
+      const primaryKeys = await adapter.getPrimaryKeys(targetSchema, tableName);
+      const rowCount = await adapter.getTableRowCount(targetSchema, tableName);
+
+      tableInfos.push({
+        name: tableName,
+        schema: targetSchema,
+        rowCount,
+        columnCount: columns.length,
+        hasPrimaryKey: primaryKeys.length > 0,
+        foreignKeyCount: foreignKeys.length,
+      });
+    }
+
+    console.log(chalk.green(`✓ Found ${tableInfos.length} tables`));
+    console.log();
+
+    // Step 4: Table selection (using simple readline instead of blessed to avoid Windows crashes)
+    console.log(chalk.cyan('━'.repeat(50)));
+    console.log(chalk.cyan.bold('  Step 2: Select Tables to Migrate'));
+    console.log(chalk.cyan('━'.repeat(50)));
+    console.log();
+
+    // Show table list with row counts
+    const tableChoices = tableInfos.map((t) => ({
+      name: `${t.name} (${t.rowCount.toLocaleString()} rows, ${t.columnCount} cols)`,
+      value: t.name,
+      checked: true,
+    }));
+
+    const selectedTables = await multiSelectFromList<string>(
+      'Enter table numbers to migrate (e.g., 1,2,3 or "all"):',
+      tableChoices
+    );
+
+    if (selectedTables.length === 0) {
+      console.log(chalk.yellow('\nNo tables selected. Migration cancelled.\n'));
+      await adapter.disconnect();
       process.exit(0);
     }
 
-    // Create dashboard
-    this.dashboard = createDashboard({
-      sourceDb: 'PostgreSQL',
-      targetDb: 'Convex',
-      mode: 'schema-and-data',
-      tables: selection.selectedTables,
-    });
+    console.log(chalk.green(`\n✓ Selected ${selectedTables.length} tables\n`));
 
-    // Demo: Simulate migration progress
-    await this.simulateMigration(selection.selectedTables, mockTables);
-  }
+    const selection = {
+      confirmed: true,
+      selectedTables,
+    };
 
-  /**
-   * Simulate migration for demo purposes
-   */
-  private async simulateMigration(
-    selectedTables: string[],
-    allTables: TableSelectorInfo[]
-  ): Promise<void> {
-    if (!this.dashboard) return;
+    // Step 5: Convex authentication (if doing data migration)
+    let convexUrl = '';
+    let convexKey = '';
 
-    const tableMap = new Map(allTables.map((t) => [t.name, t]));
-    const totalRows = selectedTables
-      .map((name) => tableMap.get(name)?.rowCount || 0)
-      .reduce((a, b) => a + b, 0);
+    if (migrationMode !== 'schema-only') {
+      console.log();
+      console.log(chalk.cyan('━'.repeat(50)));
+      console.log(chalk.cyan.bold('  Step 2: Convex Authentication'));
+      console.log(chalk.cyan('━'.repeat(50)));
+      console.log();
 
-    let migratedRows = 0;
-    let completedTables = 0;
-    const startTime = Date.now();
-
-    const tableStatuses: TableStatus[] = selectedTables.map((name) => ({
-      name,
-      status: 'pending' as const,
-      totalRows: tableMap.get(name)?.rowCount || 0,
-      migratedRows: 0,
-      errorCount: 0,
-      duration: 0,
-    }));
-
-    this.dashboard.updateTables(tableStatuses);
-
-    // Process each table
-    for (let i = 0; i < selectedTables.length; i++) {
-      const tableName = selectedTables[i];
-      const tableInfo = tableMap.get(tableName)!;
-
-      // Start table
-      tableStatuses[i].status = 'migrating';
-      this.dashboard.updateTables(tableStatuses);
-      this.dashboard.log(`Starting migration of ${tableName}...`, 'info');
-
-      const tableStartTime = Date.now();
-      let tableRows = 0;
-
-      // Simulate batches
-      const batchSize = 1000;
-      const batches = Math.ceil(tableInfo.rowCount / batchSize);
-
-      for (let b = 0; b < batches; b++) {
-        const rowsThisBatch = Math.min(
-          batchSize,
-          tableInfo.rowCount - tableRows
-        );
-
-        // Simulate processing time (faster for demo)
-        await this.sleep(50 + Math.random() * 100);
-
-        tableRows += rowsThisBatch;
-        migratedRows += rowsThisBatch;
-
-        tableStatuses[i].migratedRows = tableRows;
-
-        const elapsedTime = (Date.now() - startTime) / 1000;
-        const rowsPerSecond = migratedRows / elapsedTime;
-        const eta = (totalRows - migratedRows) / rowsPerSecond;
-
-        this.dashboard.updateStats({
-          totalTables: selectedTables.length,
-          completedTables,
-          totalRows,
-          migratedRows,
-          failedRows: 0,
-          rowsPerSecond,
-          memoryUsage: process.memoryUsage().heapUsed,
-          elapsedTime,
-          eta,
-        });
-
-        this.dashboard.updateTables(tableStatuses);
+      const convexCreds = await this.getConvexCredentials();
+      if (!convexCreds) {
+        console.log(chalk.yellow('\nConvex authentication skipped. Doing schema-only.'));
+        this.config.mode = 'schema-only';
+      } else {
+        convexUrl = convexCreds.url;
+        convexKey = convexCreds.deployKey;
       }
-
-      // Complete table
-      tableStatuses[i].status = 'completed';
-      tableStatuses[i].duration = (Date.now() - tableStartTime) / 1000;
-      completedTables++;
-
-      this.dashboard.log(
-        `Completed ${tableName} (${tableInfo.rowCount.toLocaleString()} rows)`,
-        'success'
-      );
-      this.dashboard.updateTables(tableStatuses);
     }
 
-    // Show completion
-    const totalTime = (Date.now() - startTime) / 1000;
-    this.dashboard.updateStats({
-      totalTables: selectedTables.length,
-      completedTables: selectedTables.length,
-      totalRows,
-      migratedRows: totalRows,
-      failedRows: 0,
-      rowsPerSecond: totalRows / totalTime,
-      memoryUsage: process.memoryUsage().heapUsed,
-      elapsedTime: totalTime,
-      eta: 0,
+    // Step 6: Output directory
+    const outputDir = await textInput('Output directory for generated Convex files', './convex');
+
+    // Run migration with simple console output (blessed dashboard crashes on Windows)
+    await this.runSimpleMigration({
+      adapter,
+      schema: targetSchema,
+      selectedTables: selection.selectedTables,
+      tableInfos,
+      outputDir,
+      convexUrl,
+      convexKey,
+      mode: this.config.mode || 'schema-only',
     });
 
-    this.dashboard.log(
-      `Migration complete! ${totalRows.toLocaleString()} rows in ${totalTime.toFixed(1)}s`,
-      'success'
-    );
-
-    // Wait a bit then show completion screen
-    await this.sleep(2000);
-    this.dashboard.showComplete(true);
+    await adapter.disconnect();
   }
 
   /**
-   * Prompt for database connection string
+   * Simple migration without blessed dashboard
+   */
+  private async runSimpleMigration(options: {
+    adapter: Awaited<ReturnType<typeof createAdapter>>;
+    schema: string;
+    selectedTables: string[];
+    tableInfos: TableSelectorInfo[];
+    outputDir: string;
+    convexUrl: string;
+    convexKey: string;
+    mode: string;
+  }): Promise<void> {
+    const { adapter, schema, selectedTables, outputDir, mode } = options;
+
+    console.log();
+    console.log(chalk.cyan('━'.repeat(50)));
+    console.log(chalk.cyan.bold('  Step 3: Generating Convex Code'));
+    console.log(chalk.cyan('━'.repeat(50)));
+    console.log();
+
+    console.log(chalk.cyan('⏳ Generating schema and functions...'));
+
+    // Build full table info for generator
+    const fullTables = [];
+    for (const tableName of selectedTables) {
+      process.stdout.write(chalk.dim(`  Introspecting ${tableName}...`));
+      const columns = await adapter.getColumns(schema, tableName);
+      const primaryKeys = await adapter.getPrimaryKeys(schema, tableName);
+      const foreignKeys = await adapter.getForeignKeys(schema, tableName);
+      const indexes = await adapter.getIndexes(schema, tableName);
+
+      fullTables.push({
+        tableName,
+        schemaName: schema,
+        tableType: 'BASE TABLE' as const,
+        columns,
+        primaryKeys,
+        foreignKeys,
+        indexes,
+        checkConstraints: [],
+        description: null,
+        convexTableName: tableName,
+      });
+      console.log(chalk.green(' ✓'));
+    }
+
+    // Generate code
+    console.log();
+    console.log(chalk.cyan('⏳ Writing Convex files...'));
+
+    const generator = new ConvexFunctionGenerator({
+      outputDir,
+      generateValidators: true,
+      generateQueries: true,
+      generateMutations: true,
+      generateTypes: true,
+      generateActions: true,
+      generateHttpActions: true,
+    });
+
+    const result = generator.generate(fullTables);
+    await generator.writeToFileSystem(result);
+
+    // Count generated files
+    let filesWritten = 2; // schema.ts + index.ts
+    for (const [tableName, files] of result.tables) {
+      const fileCount = Object.values(files).filter(Boolean).length;
+      filesWritten += fileCount;
+      console.log(chalk.dim(`  → ${tableName}/ (${fileCount} files)`));
+    }
+
+    console.log();
+    console.log(chalk.green('━'.repeat(50)));
+    console.log(chalk.green.bold('  ✓ Migration Complete!'));
+    console.log(chalk.green('━'.repeat(50)));
+    console.log();
+    console.log(chalk.white(`  Tables processed: ${selectedTables.length}`));
+    console.log(chalk.white(`  Files generated:  ${filesWritten}`));
+    console.log(chalk.white(`  Output directory: ${outputDir}`));
+    console.log();
+
+    if (mode === 'schema-only') {
+      console.log(chalk.yellow('  Mode: Schema only (no data migration)'));
+      console.log();
+    }
+
+    console.log(chalk.cyan('  Next steps:'));
+    console.log(chalk.dim('    1. Review the generated code in ' + outputDir));
+    console.log(chalk.dim('    2. Copy files to your Convex project'));
+    console.log(chalk.dim('    3. Run: npx convex deploy'));
+    console.log();
+  }
+
+  /**
+   * Get Convex credentials using the smart auth flow
+   */
+  private async getConvexCredentials(): Promise<{ url: string; deployKey: string } | null> {
+    // Check for existing credentials first
+    let existing: Awaited<ReturnType<typeof detectExistingCredentials>> | null = null;
+    try {
+      existing = await detectExistingCredentials();
+    } catch (err) {
+      console.log(chalk.dim('  (No existing credentials found)'));
+    }
+
+    if (existing?.credentials?.deployKey) {
+      console.log(chalk.green('✓') + ' Found existing Convex credentials');
+      console.log(chalk.dim(`  Source: ${existing.source}`));
+      console.log(chalk.dim(`  URL: ${existing.credentials.deploymentUrl}`));
+      console.log();
+
+      const useExisting = await confirm('Use these existing credentials?', true);
+
+      if (useExisting) {
+        // Validate them
+        console.log(chalk.cyan('⏳ Validating credentials...'));
+        const validation = await validateCredentials(existing.credentials);
+        if (validation.valid) {
+          console.log(chalk.green('✓ Credentials are valid'));
+          return {
+            url: existing.credentials.deploymentUrl,
+            deployKey: existing.credentials.deployKey,
+          };
+        } else {
+          console.log(chalk.red('✗ Credentials invalid: ' + validation.error));
+        }
+      }
+    }
+
+    // No existing credentials, offer auth methods
+    console.log(chalk.cyan('🔐 Convex Authentication'));
+    console.log(chalk.dim('   You need Convex credentials to migrate data.'));
+    console.log();
+
+    console.log(chalk.cyan('How would you like to authenticate?'));
+    console.log();
+
+    const authMethod = await selectFromList<string>(
+      '',
+      [
+        {
+          name: 'Open browser (recommended) - Opens Convex dashboard in your browser',
+          value: 'browser',
+        },
+        {
+          name: 'Enter manually - Paste credentials from the dashboard',
+          value: 'manual',
+        },
+        {
+          name: 'Skip - Do schema-only migration (no data)',
+          value: 'skip',
+        },
+      ]
+    );
+
+    if (authMethod === 'browser') {
+      const result = await authenticateConvex({
+        onStatusChange: (status) => console.log(status),
+      });
+
+      if (result.success && result.credentials) {
+        // Save for future use
+        await saveCredentials(result.credentials);
+        console.log(chalk.green('✓') + ' Credentials saved to .env.local');
+        return {
+          url: result.credentials.deploymentUrl,
+          deployKey: result.credentials.deployKey,
+        };
+      } else {
+        console.log(chalk.red('✗ Browser auth failed: ' + result.error));
+        return null;
+      }
+    } else if (authMethod === 'manual') {
+      console.log();
+      console.log(chalk.cyan('📋 Get your credentials from:'));
+      console.log(chalk.dim('   https://dashboard.convex.dev → Your Project → Settings → Deploy Keys'));
+      console.log();
+
+      const url = await textInput('Deployment URL', 'https://your-project.convex.cloud');
+      const deployKey = await passwordInput('Deploy Key');
+
+      // Validate
+      console.log(chalk.cyan('⏳ Validating credentials...'));
+      const validation = await validateCredentials({
+        deploymentUrl: url,
+        deployKey: deployKey,
+      });
+      const answers = { url, deployKey };
+
+      if (validation.valid) {
+        await saveCredentials({
+          deploymentUrl: answers.url,
+          deployKey: answers.deployKey,
+        });
+        console.log(chalk.green('✓') + ' Credentials validated and saved');
+        return answers;
+      } else {
+        console.log(chalk.red('✗ Invalid credentials: ' + validation.error));
+        return null;
+      }
+    }
+
+    return null; // Skip
+  }
+
+  /**
+   * Prompt for database connection
+   * Uses Windows-compatible readline input (no raw mode issues)
    */
   private async promptForConnection(): Promise<string> {
-    const { connectionString } = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'connectionString',
-        message: 'Enter database connection string:',
-        default:
-          process.env.DATABASE_URL ||
-          'postgresql://user:pass@localhost:5432/mydb',
-        validate: (input: string) => {
-          if (!input.trim()) return 'Connection string is required';
-          try {
-            parseConnectionString(input);
-            return true;
-          } catch {
-            return 'Invalid connection string format. Examples:\n  postgresql://user:pass@localhost:5432/db\n  mysql://user:pass@localhost:3306/db\n  sqlite://./mydb.sqlite';
-          }
-        },
-      },
-    ]);
-    return connectionString;
+    // Check for environment variable first
+    const envConnection = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+
+    if (envConnection) {
+      console.log(chalk.green('✓') + ` Found DATABASE_URL in environment`);
+      console.log(chalk.dim(`  ${envConnection.replace(/:[^:@]+@/, ':***@')}`));
+      console.log();
+
+      const useEnv = await confirm('Use this connection string?', true);
+      if (useEnv) {
+        return envConnection;
+      }
+    }
+
+    console.log();
+    console.log(chalk.cyan('How would you like to enter database credentials?'));
+    console.log();
+
+    // Use number-based selection (works on all terminals)
+    const inputMethod = await selectFromList<string>(
+      '',
+      [
+        { name: 'Enter details separately (recommended)', value: 'separate' },
+        { name: 'Paste full connection string', value: 'paste' },
+        { name: 'SQLite file path', value: 'sqlite' },
+      ]
+    );
+
+    if (inputMethod === 'sqlite') {
+      const filepath = await textInput('SQLite database file path', './database.db');
+      return `sqlite:///${filepath}`;
+    }
+
+    if (inputMethod === 'paste') {
+      console.log();
+      console.log(chalk.yellow('Tip: If paste gets mangled, restart and choose "Enter details separately"'));
+      console.log();
+
+      const connectionString = await textInput('Connection string');
+      try {
+        parseConnectionString(connectionString.trim());
+        return connectionString.trim();
+      } catch (err) {
+        console.log(chalk.red(`Invalid connection string: ${(err as Error).message}`));
+        return this.promptForConnection(); // Retry
+      }
+    }
+
+    // Separate fields (recommended - works reliably on Windows)
+    console.log();
+    console.log(chalk.cyan('Select database type:'));
+    console.log();
+
+    const dbType = await selectFromList<string>(
+      '',
+      [
+        { name: 'PostgreSQL', value: 'postgresql' },
+        { name: 'MySQL', value: 'mysql' },
+        { name: 'SQL Server', value: 'mssql' },
+      ]
+    );
+
+    console.log();
+    console.log(chalk.cyan('Enter connection details:'));
+    console.log();
+
+    const defaultPort = dbType === 'postgresql' ? '5432' : dbType === 'mysql' ? '3306' : '1433';
+
+    const host = await textInput('Host', 'localhost');
+    const port = await textInput('Port', defaultPort);
+    const database = await textInput('Database name');
+    const user = await textInput('Username');
+    const password = await passwordInput('Password');
+    const ssl = await confirm('Use SSL?', true);
+
+    // Build connection string
+    let connStr = `${dbType}://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${database}`;
+    if (ssl) {
+      connStr += '?sslmode=require';
+    }
+
+    return connStr;
   }
 
   /**
@@ -380,27 +642,18 @@ export class TUIApp {
    */
   private async runGenerate(): Promise<void> {
     console.clear();
-    printLogo('neon');
-    console.log(sunsetGradient('\n☀️  Schema Generation Mode\n'));
-    console.log(
-      chalk.gray(
-        'Generate Convex schema, queries, mutations, and actions from your database.\n'
-      )
-    );
+    printLogo(); // Auto-responsive
+    console.log();
+    console.log(sunsetGradient('  Schema Generation Mode'));
+    console.log(chalk.dim('  Generate Convex schema, queries, mutations from your database.'));
+    console.log();
 
     try {
       // Get connection string
       const connectionString = await this.promptForConnection();
 
       // Get output directory
-      const { outputDir } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'outputDir',
-          message: 'Output directory for generated files:',
-          default: './convex',
-        },
-      ]);
+      const outputDir = await textInput('Output directory for generated files', './convex');
 
       console.log();
       console.log(chalk.cyan('⏳ Connecting to database...'));
@@ -437,22 +690,26 @@ export class TUIApp {
       console.log(chalk.green(`✓ Found ${schema.tables.length} tables`));
 
       // Table selection
+      console.log();
+      console.log(chalk.cyan('Select tables to generate code for:'));
+
       const tableChoices = schema.tables.map((t) => ({
         name: `${t.tableName} (${t.columns.length} columns)`,
         value: t.tableName,
         checked: true,
       }));
 
-      const { selectedTables } = await inquirer.prompt([
-        {
-          type: 'checkbox',
-          name: 'selectedTables',
-          message: 'Select tables to generate code for:',
-          choices: tableChoices,
-          validate: (input: string[]) =>
-            input.length > 0 || 'Select at least one table',
-        },
-      ]);
+      const selectedTables = await multiSelectFromList<string>(
+        '',
+        tableChoices
+      );
+
+      if (selectedTables.length === 0) {
+        console.log(chalk.red('No tables selected. At least one table is required.'));
+        await this.waitForKey();
+        await this.start();
+        return;
+      }
 
       const tablesToGenerate = schema.tables.filter((t) =>
         selectedTables.includes(t.tableName)
@@ -536,14 +793,7 @@ export class TUIApp {
         );
         console.log();
 
-        const { runTypecheck } = await inquirer.prompt([
-          {
-            type: 'confirm',
-            name: 'runTypecheck',
-            message: 'Would you like to typecheck the generated code?',
-            default: true,
-          },
-        ]);
+        const runTypecheck = await confirm('Would you like to typecheck the generated code?', true);
 
         if (runTypecheck) {
           console.log();
@@ -587,11 +837,11 @@ export class TUIApp {
    */
   private async runIntrospect(): Promise<void> {
     console.clear();
-    printLogo('neon');
-    console.log(sunsetGradient('\n🔍 Database Introspection Mode\n'));
-    console.log(
-      chalk.gray('Explore your database structure before migration.\n')
-    );
+    printLogo(); // Auto-responsive
+    console.log();
+    console.log(sunsetGradient('  Database Introspection Mode'));
+    console.log(chalk.dim('  Explore your database structure before migration.'));
+    console.log();
 
     try {
       // Get connection string
@@ -635,8 +885,10 @@ export class TUIApp {
 
       // Display results
       console.clear();
-      printLogo('minimal');
-      console.log(sunsetGradient('\n📊 Database Schema Analysis\n'));
+      printLogo();
+      console.log();
+      console.log(sunsetGradient('  Database Schema Analysis'));
+      console.log();
 
       // Summary box - responsive width
       const totalColumns = schema.tables.reduce(
@@ -844,52 +1096,45 @@ export class TUIApp {
   }
 
   /**
-   * Show help information
+   * Show help information (responsive layout)
    */
   private showHelp(): void {
     console.clear();
-    printLogo('sunset');
+    printLogo(); // Auto-selects based on terminal width
 
-    console.log(
-      sunsetGradient(`
-╔════════════════════════════════════════════════════════════════╗
-║                    SunSetter AQM+ Help                         ║
-╠════════════════════════════════════════════════════════════════╣
-║                                                                ║
-║  SunSetter AQM+ is a database migration tool that converts     ║
-║  your existing SQL databases to Convex.                        ║
-║                                                                ║
-║  AQM = Actions, Queries, Mutations                             ║
-║                                                                ║
-║  SUPPORTED DATABASES:                                          ║
-║    • PostgreSQL                                                ║
-║    • MySQL / MariaDB                                           ║
-║    • SQLite                                                    ║
-║    • SQL Server                                                ║
-║                                                                ║
-║  MIGRATION MODES:                                              ║
-║    • schema-only      Generate Convex schema files             ║
-║    • schema-and-data  Migrate schema and all data              ║
-║    • data-only        Migrate data to existing schema          ║
-║                                                                ║
-║  FEATURES:                                                     ║
-║    • Automatic type mapping                                    ║
-║    • Foreign key relationship detection                        ║
-║    • Batch processing with rate limiting                       ║
-║    • Resume interrupted migrations                             ║
-║    • Rollback support                                          ║
-║    • Parallel table migration                                  ║
-║                                                                ║
-║  CLI USAGE:                                                    ║
-║    $ sunsetter-aqm migrate -c "postgresql://..."               ║
-║    $ sunsetter-aqm --tui           (Launch TUI mode)           ║
-║    $ sunsetter-aqm --help          (Show CLI help)             ║
-║                                                                ║
-╚════════════════════════════════════════════════════════════════╝
-`)
-    );
+    console.log();
+    console.log(sunsetGradient('  SunSetter AQM+ Help'));
+    console.log(chalk.dim('  ' + '─'.repeat(Math.min(40, process.stdout.columns - 4 || 40))));
+    console.log();
 
-    console.log('\nPress any key to return...');
+    console.log(chalk.white('  Database to Convex migration tool.'));
+    console.log(chalk.dim('  AQM = Actions, Queries, Mutations'));
+    console.log();
+
+    console.log(chalk.cyan('  Supported Databases:'));
+    console.log(chalk.dim('    PostgreSQL, MySQL, SQLite, SQL Server'));
+    console.log();
+
+    console.log(chalk.cyan('  Migration Modes:'));
+    console.log(chalk.white('    1. Schema Only    ') + chalk.dim('Generate Convex files'));
+    console.log(chalk.white('    2. Schema + Data  ') + chalk.dim('Full migration'));
+    console.log(chalk.white('    3. Data Only      ') + chalk.dim('To existing schema'));
+    console.log();
+
+    console.log(chalk.cyan('  Features:'));
+    console.log(chalk.dim('    - Auto type mapping'));
+    console.log(chalk.dim('    - FK relationship detection'));
+    console.log(chalk.dim('    - Batch processing'));
+    console.log(chalk.dim('    - Resume/rollback support'));
+    console.log();
+
+    console.log(chalk.cyan('  CLI Usage:'));
+    console.log(chalk.dim('    sunsetter-aqm --tui'));
+    console.log(chalk.dim('    sunsetter-aqm migrate -c "postgres://..."'));
+    console.log(chalk.dim('    sunsetter-aqm --help'));
+    console.log();
+
+    console.log(chalk.dim('  Press any key to return...'));
     this.waitForKey().then(() => this.start());
   }
 
@@ -898,14 +1143,11 @@ export class TUIApp {
    */
   private quit(): void {
     console.clear();
-    console.log(
-      sunsetGradient(`
-  Thanks for using ${APP_NAME}!
-
-  ☀️  May your migrations be swift and error-free.
-
-`)
-    );
+    console.log();
+    console.log(sunsetGradient(`  Thanks for using ${APP_NAME}!`));
+    console.log();
+    console.log(chalk.dim('  May your migrations be swift and error-free.'));
+    console.log();
     process.exit(0);
   }
 

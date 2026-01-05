@@ -1,14 +1,33 @@
 # SunSetter AQM+
 
-**Enterprise-grade database to Convex migration tool with beautiful TUI**
+**The "110%" Database Migration Suite for Convex**
+
+> **Auto-converts SQL constraints to Validators**, **Auto-suggests Indexes**, and **Generates type-safe Mutations/Queries**.
 
 AQM = **A**ctions, **Q**ueries, **M**utations - the building blocks of Convex
+
+## The "110%" Difference
+
+SunSetter is more than just a data mover. It understands your SQL schema better than you do.
+
+### 1. 🧠 Intelligent Constraint Translation
+Most tools drop your SQL constraints. SunSetter parses them into Convex Validators.
+*   **SQL**: `CHECK (age >= 18 AND age <= 120)`
+*   **Convex**: `v.number().gte(18).lte(120)`
+
+### 2. ⚡ Auto-Index Optimization
+NoSQL indexing is hard. SunSetter analyzes your foreign keys and query patterns to suggest high-impact indexes automatically.
+
+### 3. 🛡️ Resilient Data Pipeline
+*   **Streaming**: O(1) memory usage via cursor-based pagination.
+*   **Parallelism**: Concurrent table processing with dependency graph resolution.
+*   **Safety**: Dry-run mode and rollback capabilities.
 
 ## Features
 
 ### Multi-Database Support
 
-- **PostgreSQL** - Full support with multi-schema introspection
+- **PostgreSQL** - Full support with multi-schema introspection & Enum auto-detection
 - **MySQL / MariaDB** - Complete type mapping and streaming
 - **SQLite** - File-based database migration
 - **SQL Server (MSSQL)** - Enterprise database support

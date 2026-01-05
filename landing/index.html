@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SunSetter AQM+ | Enterprise Database to Convex Migration</title>
+    <meta name="description"
+        content="The 110% Database Migration Suite for Convex. Auto-converts SQL constraints to Validators, auto-suggests Indexes, and generates type-safe Mutations/Queries.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="sunset-bg"></div>
+
+    <nav>
+        <div class="container">
+            <div class="logo">
+                <span class="sun">☀️</span> SunSetter <span>AQM+</span>
+            </div>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#demo">Demo</a>
+                <a href="https://github.com/Heyoub/db.aqm" class="btn-secondary">GitHub</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="badge">AQM = Actions · Queries · Mutations</div>
+                <h1>The "110%" Database Migration Suite for <span>Convex</span></h1>
+                <p class="subtitle">Stop losing your schema logic in migration. SunSetter parses SQL constraints into
+                    Convex Validators and auto-suggests optimized indexes.</p>
+
+                <div class="hero-actions">
+                    <a href="#demo" class="btn-primary">Watch the Wizard</a>
+                    <a href="#features" class="btn-text">Explore Features →</a>
+                </div>
+            </div>
+
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <div class="dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div class="terminal-title">sunsetter --wizard</div>
+                </div>
+                <div class="terminal-body" id="terminal-output">
+                    <div class="line"><span class="prompt">$</span> sunsetter wizard</div>
+                    <div class="line typing" data-delay="1000">⏳ Introspecting PostgreSQL schema...</div>
+                    <div class="line typing" data-delay="3000"><span class="success">✓</span> Found 14 tables in schema
+                        "public"</div>
+                    <div class="line typing" data-delay="4000">🧠 Analyzing SQL Constraints...</div>
+                    <div class="line typing" data-delay="5000"><span class="highlight">Check found:</span> (age >= 18) →
+                        v.number().gte(18)</div>
+                    <div class="line typing" data-delay="6000">⚡ Generating Production Code...</div>
+                    <div class="line typing" data-delay="8000"><span class="success">✓</span> Migration Complete!
+                        Output: ./convex</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-title">
+                <h2>Why Developers Choose <span>SunSetter</span></h2>
+                <p>Enterprise-grade logic preservation that goes beyond simple data moving.</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="icon">🧠</div>
+                    <h3>Intelligent Constraints</h3>
+                    <p>Don't drop your <code>CHECK</code> constraints. We parse SQL ASTs into Convex <code>v</code>
+                        validators automatically.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">⚡</div>
+                    <h3>Auto-Index Optimization</h3>
+                    <p>SunSetter analyzes foreign keys and query patterns to suggest high-impact Convex indexes for you.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🛡️</div>
+                    <h3>Resilient Streaming</h3>
+                    <p>O(1) memory usage via cursor-based pagination. Handles GBs of data without breaking a sweat.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">✨</div>
+                    <h3>Full API Generation</h3>
+                    <p>Gets you from zero to backend in seconds with generated Mutations, Queries, and Actions.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="code-preview">
+        <div class="container">
+            <div class="preview-split">
+                <div class="preview-text">
+                    <h2>From Legacy SQL to <span>Modern Type-Safety</span></h2>
+                    <p>SunSetter converts complex SQL relationships and constraints into beautiful, readable Convex
+                        code.</p>
+                    <ul class="benefit-list">
+                        <li>Enums auto-detected & mapped to <code>v.union()</code></li>
+                        <li>Primary/Foreign keys mapped to <code>v.id()</code></li>
+                        <li>JSONB fields mapped to <code>v.any()</code> or <code>v.array()</code></li>
+                    </ul>
+                </div>
+                <div class="preview-code-box">
+                    <div class="code-header">schema.ts</div>
+                    <pre><code><span class="keyword">export default</span> <span class="function">defineSchema</span>({
+  <span class="variable">users</span>: <span class="function">defineTable</span>({
+    <span class="variable">name</span>: <span class="variable">v</span>.<span class="keyword">string</span>(),
+    <span class="variable">age</span>: <span class="variable">v</span>.<span class="keyword">number</span>().<span class="function">gte</span>(<span class="number">18</span>),
+    <span class="variable">role</span>: <span class="variable">v</span>.<span class="function">union</span>(
+      <span class="variable">v</span>.<span class="function">literal</span>(<span class="string">"admin"</span>),
+      <span class="variable">v</span>.<span class="function">literal</span>(<span class="string">"user"</span>)
+    )
+  }).<span class="function">index</span>(<span class="string">"by_role"</span>, [<span class="string">"role"</span>])
+});</code></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="postgres-deep" class="postgres-deep">
+        <div class="container">
+            <div class="postgres-card">
+                <div class="postgres-logo">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15.5l-3.5-3.5 1.41-1.41L11 14.67l4.09-4.09L16.5 12 11 17.5z">
+                        </path>
+                    </svg>
+                    <span>PostgreSQL Intelligence</span>
+                </div>
+                <div class="postgres-grid">
+                    <div class="postgres-item">
+                        <h4>Auto-Enum Detection</h4>
+                        <p>Automatically queries <code>pg_enum</code> and maps values directly to Convex
+                            <code>v.union()</code> literals. No manual mapping required.
+                        </p>
+                    </div>
+                    <div class="postgres-item">
+                        <h4>Partition Awareness</h4>
+                        <p>Detects partitioned tables and materialized views, merging data intelligently into Convex
+                            collections while preserving references.</p>
+                    </div>
+                    <div class="postgres-item">
+                        <h4>Extension Support</h4>
+                        <p>Built-in mappers for PostgreSQL-specific types like <code>ltree</code>, <code>hstore</code>,
+                            <code>cube</code>, and <code>geometry</code>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 Heyoub SunSetter AQM+. Built for the Convex community.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

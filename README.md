@@ -2,7 +2,7 @@
 
 **The "110%" Database Migration Suite for Convex**
 
-[✨ View official Landing Page (Live Demo)](https://heyoub.github.io/SunSetter_AQM/)
+[✨ Official Landing Page (Deployable to Vercel)](./landing/)
 
 > **Auto-converts SQL constraints to Validators**, **Auto-suggests Indexes**, and **Generates type-safe Mutations/Queries**.
 

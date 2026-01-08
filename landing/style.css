@@ -486,6 +486,31 @@ code {
     color: #f78c6c;
 }
 
+/* CTA Section */
+.cta-section {
+    padding: 6rem 0;
+    text-align: center;
+    background: linear-gradient(180deg, transparent 0%, rgba(255, 107, 53, 0.05) 50%, transparent 100%);
+}
+
+.cta-section h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    background: var(--sunset-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.cta-section p {
+    color: var(--text-dim);
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 /* Footer */
 footer {
     padding: 4rem 0;
@@ -493,4 +518,13 @@ footer {
     border-top: 1px solid var(--glass-border);
     color: var(--text-dim);
     font-size: 0.9rem;
+}
+
+footer a {
+    color: var(--primary-orange);
+    text-decoration: none;
+}
+
+footer a:hover {
+    text-decoration: underline;
 }

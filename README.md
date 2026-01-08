@@ -526,6 +526,20 @@ Requirements:
 - npm or yarn
 - Database client (optional, for validation)
 
+## Need Help With Your Migration?
+
+**Migrations are easy. Architecture decisions are hard.**
+
+This tool handles the mechanical work, but you might want expert help with:
+- Schema design for Convex (NoSQL is different from SQL)
+- Index optimization for your query patterns
+- Handling edge cases and complex data relationships
+- Production migration planning and rollback strategies
+
+**Consulting available** → [heyoub.dev](https://heyoub.dev)
+
+---
+
 ## Contributing
 
 Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
@@ -536,4 +550,4 @@ MIT - see [LICENSE](LICENSE)
 
 ---
 
-Built with care for the Convex community
+Built by [Heyoub](https://heyoub.dev) for the Convex community

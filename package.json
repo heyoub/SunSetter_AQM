@@ -35,11 +35,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Heyoub/db.aqm"
+    "url": "https://github.com/Heyoub/SunSetter_AQM.git"
   },
-  "homepage": "https://github.com/Heyoub/db.aqm#readme",
+  "homepage": "https://sunsetter-aqm.heyoub.dev",
   "bugs": {
-    "url": "https://github.com/Heyoub/db.aqm/issues"
+    "url": "https://github.com/Heyoub/SunSetter_AQM/issues"
   },
   "scripts": {
     "build": "tsc",
@@ -95,8 +95,8 @@
     "claude-desktop",
     "ai-tools"
   ],
-  "author": "",
-  "license": "Proprietary",
+  "author": "Heyoub (https://heyoub.dev)",
+  "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.1",
     "@types/blessed": "^0.1.27",

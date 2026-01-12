@@ -35,7 +35,8 @@
       "Bash(timeout 5 node:*)",
       "Bash(wc:*)",
       "Bash(grep:*)",
-      "Bash(git grep:*)"
+      "Bash(git grep:*)",
+      "Bash(git push:*)"
     ]
   }
 }

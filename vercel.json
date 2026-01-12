@@ -1,10 +1,6 @@
 {
     "version": 2,
-    "cleanUrls": true,
-    "rewrites": [
-        {
-            "source": "/(.*)",
-            "destination": "/landing/$1"
-        }
-    ]
+    "buildCommand": "",
+    "outputDirectory": "landing",
+    "cleanUrls": true
 }

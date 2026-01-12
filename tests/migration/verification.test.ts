@@ -10,6 +10,7 @@
  * - Mock-based tests: Behavior with various adapter/client states
  */
 
+import { jest } from '@jest/globals';
 import * as fc from 'fast-check';
 import {
   MigrationVerifier,

@@ -30,6 +30,10 @@ logs
 .env.test.local
 .env.production.local
 
+# Test connection files (may contain real credentials)
+test-connection.*
+*-connection-test.*
+
 # IDE files
 .vscode/
 .idea/

@@ -13,6 +13,9 @@ export default {
   testEnvironment: 'node',
   testMatch: ['**/tests/**/*.test.ts', '**/tests/**/*.bench.ts'],
   testPathIgnorePatterns: ['/node_modules/'],
+  transformIgnorePatterns: [
+    'node_modules/(?!(fast-check)/)',
+  ],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',

@@ -165,7 +165,7 @@ ${chalk.bold.yellow('Claude AI Integration (MCP):')}
   ${chalk.gray('  "mcpServers": {')}
   ${chalk.gray('    "sunsetter-aqm": {')}
   ${chalk.gray('      "command": "npx",')}
-  ${chalk.gray('      "args": ["-y", "@Heyoub/sunsetter-aqm", "--mcp"]')}
+  ${chalk.gray('      "args": ["-y", "@heyoub/sunsetter-aqm", "--mcp"]')}
   ${chalk.gray('    }')}
   ${chalk.gray('  }')}
   ${chalk.gray('}')}
@@ -203,8 +203,8 @@ ${chalk.bold.yellow('Troubleshooting:')}
   • Verify Convex admin key
 
   ${chalk.cyan('Get help:')}
-  • GitHub Issues: https://github.com/Heyoub/db.aqm/issues
-  • Documentation: https://github.com/Heyoub/db.aqm#readme
+  • GitHub Issues: https://github.com/heyoub/db.aqm/issues
+  • Documentation: https://github.com/heyoub/db.aqm#readme
 `;
 
 // ============================================================================

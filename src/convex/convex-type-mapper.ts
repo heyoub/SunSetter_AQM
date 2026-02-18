@@ -92,9 +92,23 @@ const POSTGRES_TO_CONVEX_MAP: Record<string, string> = {
   jsonb: 'v.any()',
 
   // ═══════════════════════════════════════════════════════════════
-  // BINARY DATA
+  // BINARY DATA → Convex File Storage
+  // Binary columns are mapped to v.id("_storage") because Convex stores
+  // files in its built-in file storage system rather than as raw bytes
+  // in documents. The tool generates upload/download action stubs for
+  // each detected binary column.
+  // Docs: https://docs.convex.dev/file-storage
   // ═══════════════════════════════════════════════════════════════
-  bytea: 'v.bytes()',
+  bytea: 'v.id("_storage")',
+  // MySQL binary types (also handled by mysql adapter)
+  blob: 'v.id("_storage")',
+  tinyblob: 'v.id("_storage")',
+  mediumblob: 'v.id("_storage")',
+  longblob: 'v.id("_storage")',
+  binary: 'v.id("_storage")',
+  varbinary: 'v.id("_storage")',
+  // SQL Server binary types
+  image: 'v.id("_storage")',
 
   // ═══════════════════════════════════════════════════════════════
   // NETWORK ADDRESS TYPES

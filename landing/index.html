@@ -1,286 +1,392 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SunSetter AQM+ | Migrate SQL Databases to Convex</title>
-    <meta name="description"
-        content="Open-source CLI that migrates PostgreSQL, MySQL, SQLite, and SQL Server to Convex. Converts CHECK constraints to validators, suggests indexes, and generates queries, mutations, and actions.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&family=Fira+Code:wght@400;500&display=swap"
-        rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SunSetter AQM+ | Migrate SQL Databases to Convex</title>
+  <meta name="description" content="Open-source CLI that migrates PostgreSQL, MySQL, SQLite, and SQL Server to Convex. Converts CHECK constraints to validators, suggests indexes, generates queries, mutations, actions, crons, and auth.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@600;700;800;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-    <div class="sunset-bg"></div>
 
-    <nav>
-        <div class="container">
-            <div class="logo">
-                SunSetter <span>AQM+</span>
-            </div>
-            <div class="nav-links">
-                <a href="#features">Features</a>
-                <a href="#output">Output</a>
-                <a href="#demo">Demo</a>
-                <a href="https://github.com/Heyoub/SunSetter_AQM" class="btn-secondary">GitHub</a>
-            </div>
+  <!-- Three.js canvas lives here, fixed behind everything -->
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- Custom cursor -->
+  <div class="cursor" id="cursor"></div>
+  <div class="cursor-trail" id="cursor-trail"></div>
+
+  <!-- NAV -->
+  <nav id="nav">
+    <div class="container nav-inner">
+      <div class="logo">SunSetter<span>AQM+</span></div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#output">Output</a>
+        <a href="#demo">Demo</a>
+        <a href="https://github.com/heyoub/SunSetter_AQM" target="_blank" rel="noopener" class="btn-ghost">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero" id="hero">
+    <div class="container hero-inner">
+      <div class="hero-text reveal-up">
+        <div class="badge glitch-badge" data-text="AQM = Actions · Queries · Mutations">AQM = Actions · Queries · Mutations</div>
+        <h1 class="hero-title">
+          Migrate your SQL<br>database to <span class="gradient-text">Convex</span>
+        </h1>
+        <p class="hero-sub">
+          SunSetter reads your schema — tables, constraints, enums, foreign keys — and generates a complete Convex backend. Schema, queries, mutations, actions, crons, auth, and React hooks from one command.
+        </p>
+        <div class="install-row">
+          <div class="install-box" id="install-box">
+            <span class="install-prompt">$</span>
+            <code id="install-cmd">npx @heyoub/sunsetter-aqm wizard</code>
+            <button class="copy-btn" id="copy-btn" title="Copy">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            </button>
+          </div>
         </div>
-    </nav>
-
-    <header class="hero">
-        <div class="container">
-            <div class="hero-content">
-                <div class="badge">AQM = Actions, Queries, Mutations</div>
-                <h1>Migrate your SQL database to <span>Convex</span></h1>
-                <p class="subtitle">SunSetter reads your existing schema&mdash;tables, constraints, enums, foreign keys&mdash;and generates a complete Convex backend. Schema, queries, mutations, actions, types, and React hooks, all from one command.</p>
-
-                <div class="install-box">
-                    <code>npx @Heyoub/sunsetter-aqm wizard</code>
-                </div>
-
-                <div class="hero-actions">
-                    <a href="https://github.com/Heyoub/SunSetter_AQM" class="btn-primary">View on GitHub</a>
-                    <a href="#demo" class="btn-text">See it run →</a>
-                </div>
-            </div>
-
-            <div class="db-support">
-                <span class="db-label">Works with:</span>
-                <span class="db-tag">PostgreSQL</span>
-                <span class="db-tag">MySQL</span>
-                <span class="db-tag">SQLite</span>
-                <span class="db-tag">SQL Server</span>
-            </div>
+        <div class="hero-ctas">
+          <a href="https://github.com/heyoub/SunSetter_AQM" class="btn-primary" target="_blank" rel="noopener">View on GitHub</a>
+          <a href="#demo" class="btn-text">See it run <span class="arrow">→</span></a>
         </div>
-    </header>
-
-    <section id="features" class="features">
-        <div class="container">
-            <div class="section-title">
-                <h2>What it <span>does</span></h2>
-                <p>Most migration tools move your data and drop everything else. SunSetter carries over your schema logic too.</p>
-            </div>
-
-            <div class="features-grid">
-                <div class="feature-card">
-                    <h3>Constraint Translation</h3>
-                    <p>SQL <code>CHECK</code> constraints are parsed and converted to Convex validators. <code>CHECK (age >= 18 AND age <= 120)</code> becomes <code>v.number().gte(18).lte(120)</code>.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Index Suggestions</h3>
-                    <p>Analyzes your foreign keys and column usage to suggest Convex indexes. Each suggestion includes the field, a priority level, and copy-paste-ready code.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Full Code Generation</h3>
-                    <p>Generates <code>schema.ts</code>, typed queries, mutations, actions, HTTP endpoints, TypeScript interfaces, and React hooks for every table.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Streaming Migration</h3>
-                    <p>Moves data with cursor-based pagination so memory stays constant regardless of table size. Supports parallel table migration, checkpointing, and rollback.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>PostgreSQL Extras</h3>
-                    <p>Auto-detects <code>pg_enum</code> types and maps them to <code>v.union()</code>. Handles partitioned tables, materialized views, and extension types like <code>ltree</code> and <code>hstore</code>.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Production Tooling</h3>
-                    <p>Dry-run mode, Slack notifications on migration status, PII data masking for GDPR, post-migration row-count verification, and an MCP server for Claude integration.</p>
-                </div>
-            </div>
+        <div class="db-pills">
+          <span class="pill-label">Works with</span>
+          <span class="db-pill">PostgreSQL</span>
+          <span class="db-pill">MySQL</span>
+          <span class="db-pill">SQLite</span>
+          <span class="db-pill">SQL Server</span>
         </div>
-    </section>
+      </div>
+      <!-- 3D canvas label nodes are rendered by Three.js overlay -->
+      <div class="hero-3d-label" id="hero-3d-label">
+        <div class="graph-caption">Live schema graph — rotate with cursor</div>
+      </div>
+    </div>
+    <div class="scroll-hint">
+      <div class="scroll-line"></div>
+      <span>scroll</span>
+    </div>
+  </section>
 
-    <section id="output" class="code-preview">
-        <div class="container">
-            <div class="section-title">
-                <h2>What you <span>get</span></h2>
-                <p>Point SunSetter at a SQL database and it writes your Convex backend for you.</p>
-            </div>
+  <!-- FEATURES -->
+  <section id="features" class="section features-section">
+    <div class="container">
+      <div class="section-header reveal-up">
+        <h2>What it <span class="gradient-text">does</span></h2>
+        <p>Most migration tools move your data and drop everything else. SunSetter carries over your schema logic too.</p>
+      </div>
+      <div class="features-grid">
 
-            <div class="output-grid">
-                <div class="preview-code-box">
-                    <div class="code-header">convex/schema.ts</div>
-                    <pre><code><span class="keyword">export default</span> <span class="function">defineSchema</span>({
-  <span class="variable">users</span>: <span class="function">defineTable</span>({
-    <span class="variable">name</span>: <span class="variable">v</span>.<span class="keyword">string</span>(),
-    <span class="variable">email</span>: <span class="variable">v</span>.<span class="keyword">string</span>(),
-    <span class="variable">age</span>: <span class="variable">v</span>.<span class="keyword">number</span>().<span class="function">gte</span>(<span class="number">18</span>).<span class="function">lte</span>(<span class="number">120</span>),
-    <span class="variable">role</span>: <span class="variable">v</span>.<span class="function">union</span>(
-      <span class="variable">v</span>.<span class="function">literal</span>(<span class="string">"admin"</span>),
-      <span class="variable">v</span>.<span class="function">literal</span>(<span class="string">"editor"</span>),
-      <span class="variable">v</span>.<span class="function">literal</span>(<span class="string">"viewer"</span>)
+        <div class="feat-card reveal-card" data-i="0">
+          <div class="feat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          </div>
+          <h3>Constraint Translation</h3>
+          <p>SQL <code>CHECK</code> constraints are parsed and converted to Convex validators. <code>CHECK (age &gt;= 18 AND age &lt;= 120)</code> becomes <code>v.number().gte(18).lte(120)</code>.</p>
+        </div>
+
+        <div class="feat-card reveal-card" data-i="1">
+          <div class="feat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <h3>Index Suggestions</h3>
+          <p>Analyzes your foreign keys and column patterns to suggest Convex indexes with priority levels and copy-paste-ready code.</p>
+        </div>
+
+        <div class="feat-card reveal-card" data-i="2">
+          <div class="feat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <h3>Full Code Generation</h3>
+          <p>Generates <code>schema.ts</code>, queries, mutations, actions, HTTP endpoints, TypeScript interfaces, React hooks, <em>and</em> cron jobs for every table.</p>
+        </div>
+
+        <div class="feat-card reveal-card" data-i="3">
+          <div class="feat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </div>
+          <h3>Component Config</h3>
+          <p>Detects write-heavy tables and generates <code>convex.config.ts</code> with rate limiter, aggregate, and migrations components pre-wired.</p>
+        </div>
+
+        <div class="feat-card reveal-card" data-i="4">
+          <div class="feat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <h3>Cron Scaffolding</h3>
+          <p>Generates <code>crons.ts</code> with cleanup jobs for tables that have <code>expires_at</code>, <code>deleted_at</code>, or stuck-status patterns — using <code>internalMutation</code>.</p>
+        </div>
+
+        <div class="feat-card reveal-card" data-i="5">
+          <div class="feat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          </div>
+          <h3>Auth Scaffolding</h3>
+          <p>Detects a users table with email + password columns and generates Convex Auth setup (<code>auth.ts</code>, <code>auth.config.ts</code>) with the Password provider.</p>
+        </div>
+
+        <div class="feat-card reveal-card" data-i="6">
+          <div class="feat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+          </div>
+          <h3>File Storage Mapping</h3>
+          <p><code>BYTEA</code>, <code>BLOB</code>, and binary columns are mapped to <code>v.id("_storage")</code> with generated upload/download action stubs using Convex file storage.</p>
+        </div>
+
+        <div class="feat-card reveal-card" data-i="7">
+          <div class="feat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          </div>
+          <h3>PostgreSQL Deep Support</h3>
+          <p>Auto-detects <code>pg_enum</code> types, handles partitioned tables and materialized views, and maps extension types like <code>ltree</code> and <code>hstore</code>.</p>
+        </div>
+
+        <div class="feat-card reveal-card" data-i="8">
+          <div class="feat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+          </div>
+          <h3>Streaming Migration</h3>
+          <p>Cursor-based pagination keeps memory constant regardless of table size. Supports parallel table migration, checkpointing, dry-run, and rollback.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- OUTPUT -->
+  <section id="output" class="section output-section">
+    <div class="container">
+      <div class="section-header reveal-up">
+        <h2>What you <span class="gradient-text">get</span></h2>
+        <p>Point SunSetter at a SQL database. It writes your Convex project structure.</p>
+      </div>
+      <div class="output-grid">
+        <div class="code-panel reveal-card" data-i="0">
+          <div class="panel-header">
+            <div class="panel-dots"><span></span><span></span><span></span></div>
+            <span class="panel-filename">convex/schema.ts</span>
+          </div>
+          <pre><code><span class="kw">export default</span> <span class="fn">defineSchema</span>({
+  <span class="va">users</span>: <span class="fn">defineTable</span>({
+    <span class="va">name</span>: <span class="va">v</span>.<span class="kw">string</span>(),
+    <span class="va">email</span>: <span class="va">v</span>.<span class="kw">string</span>(),
+    <span class="va">age</span>: <span class="va">v</span>.<span class="kw">number</span>().<span class="fn">gte</span>(<span class="num">18</span>).<span class="fn">lte</span>(<span class="num">120</span>),
+    <span class="va">role</span>: <span class="va">v</span>.<span class="fn">union</span>(
+      <span class="va">v</span>.<span class="fn">literal</span>(<span class="st">"admin"</span>),
+      <span class="va">v</span>.<span class="fn">literal</span>(<span class="st">"editor"</span>),
+      <span class="va">v</span>.<span class="fn">literal</span>(<span class="st">"viewer"</span>)
     ),
-    <span class="variable">org_id</span>: <span class="variable">v</span>.<span class="function">id</span>(<span class="string">"organizations"</span>),
+    <span class="va">avatarId</span>: <span class="va">v</span>.<span class="fn">optional</span>(<span class="va">v</span>.<span class="fn">id</span>(<span class="st">"_storage"</span>)),
+    <span class="va">orgId</span>: <span class="va">v</span>.<span class="fn">id</span>(<span class="st">"organizations"</span>),
   })
-    .<span class="function">index</span>(<span class="string">"by_email"</span>, [<span class="string">"email"</span>])
-    .<span class="function">index</span>(<span class="string">"by_org"</span>, [<span class="string">"org_id"</span>])
-    .<span class="function">searchIndex</span>(<span class="string">"search_name"</span>, {
-      <span class="variable">searchField</span>: <span class="string">"name"</span>,
+    .<span class="fn">index</span>(<span class="st">"by_email"</span>, [<span class="st">"email"</span>])
+    .<span class="fn">index</span>(<span class="st">"by_org"</span>, [<span class="st">"orgId"</span>])
+    .<span class="fn">searchIndex</span>(<span class="st">"search_name"</span>, {
+      <span class="va">searchField</span>: <span class="st">"name"</span>,
     }),
 });</code></pre>
-                </div>
-                <div class="preview-code-box">
-                    <div class="code-header">convex/users.ts</div>
-                    <pre><code><span class="keyword">export const</span> <span class="variable">list</span> = <span class="function">query</span>({
-  <span class="variable">args</span>: {
-    <span class="variable">paginationOpts</span>: <span class="variable">paginationOptsValidator</span>,
-  },
-  <span class="variable">handler</span>: <span class="keyword">async</span> (<span class="variable">ctx</span>, <span class="variable">args</span>) <span class="keyword">=></span> {
-    <span class="keyword">return</span> <span class="variable">ctx</span>.<span class="variable">db</span>
-      .<span class="function">query</span>(<span class="string">"users"</span>)
-      .<span class="function">paginate</span>(<span class="variable">args</span>.<span class="variable">paginationOpts</span>);
-  },
-});
+        </div>
 
-<span class="keyword">export const</span> <span class="variable">create</span> = <span class="function">mutation</span>({
-  <span class="variable">args</span>: {
-    <span class="variable">name</span>: <span class="variable">v</span>.<span class="keyword">string</span>(),
-    <span class="variable">email</span>: <span class="variable">v</span>.<span class="keyword">string</span>(),
-    <span class="variable">age</span>: <span class="variable">v</span>.<span class="keyword">number</span>(),
-    <span class="variable">role</span>: <span class="variable">v</span>.<span class="keyword">string</span>(),
-    <span class="variable">org_id</span>: <span class="variable">v</span>.<span class="function">id</span>(<span class="string">"organizations"</span>),
+        <div class="code-panel reveal-card" data-i="1">
+          <div class="panel-header">
+            <div class="panel-dots"><span></span><span></span><span></span></div>
+            <span class="panel-filename">convex/crons.ts</span>
+          </div>
+          <pre><code><span class="kw">import</span> { <span class="va">cronJobs</span> } <span class="kw">from</span> <span class="st">"convex/server"</span>;
+<span class="kw">import</span> { <span class="va">internalMutation</span> } <span class="kw">from</span> <span class="st">"./_generated/server"</span>;
+<span class="kw">import</span> { <span class="va">internal</span> } <span class="kw">from</span> <span class="st">"./_generated/api"</span>;
+
+<span class="kw">const</span> <span class="va">crons</span> = <span class="fn">cronJobs</span>();
+
+<span class="va">crons</span>.<span class="fn">daily</span>(
+  <span class="st">"Purge soft-deleted users"</span>,
+  { <span class="va">hourUTC</span>: <span class="num">3</span>, <span class="va">minuteUTC</span>: <span class="num">0</span> },
+  <span class="va">internal</span>.<span class="va">crons</span>.<span class="va">purgeDeletedUsers</span>
+);
+
+<span class="kw">export default</span> <span class="va">crons</span>;</code></pre>
+        </div>
+
+        <div class="code-panel reveal-card" data-i="2">
+          <div class="panel-header">
+            <div class="panel-dots"><span></span><span></span><span></span></div>
+            <span class="panel-filename">convex/convex.config.ts</span>
+          </div>
+          <pre><code><span class="kw">import</span> { <span class="va">defineApp</span> } <span class="kw">from</span> <span class="st">"convex/server"</span>;
+<span class="kw">import</span> <span class="va">migrations</span> <span class="kw">from</span>
+  <span class="st">"@convex-dev/migrations/convex.config"</span>;
+<span class="kw">import</span> <span class="va">rateLimiter</span> <span class="kw">from</span>
+  <span class="st">"@convex-dev/rate-limiter/convex.config"</span>;
+
+<span class="kw">const</span> <span class="va">app</span> = <span class="fn">defineApp</span>();
+<span class="va">app</span>.<span class="fn">use</span>(<span class="va">migrations</span>);
+<span class="va">app</span>.<span class="fn">use</span>(<span class="va">rateLimiter</span>);
+
+<span class="kw">export default</span> <span class="va">app</span>;</code></pre>
+        </div>
+
+        <div class="code-panel reveal-card" data-i="3">
+          <div class="panel-header">
+            <div class="panel-dots"><span></span><span></span><span></span></div>
+            <span class="panel-filename">convex/users/mutations.ts</span>
+          </div>
+          <pre><code><span class="kw">export const</span> <span class="va">create</span> = <span class="fn">mutation</span>({
+  <span class="va">args</span>: {
+    <span class="va">name</span>: <span class="va">v</span>.<span class="kw">string</span>(),
+    <span class="va">email</span>: <span class="va">v</span>.<span class="kw">string</span>(),
+    <span class="va">age</span>: <span class="va">v</span>.<span class="kw">number</span>(),
+    <span class="va">orgId</span>: <span class="va">v</span>.<span class="fn">id</span>(<span class="st">"organizations"</span>),
   },
-  <span class="variable">handler</span>: <span class="keyword">async</span> (<span class="variable">ctx</span>, <span class="variable">args</span>) <span class="keyword">=></span> {
-    <span class="keyword">return</span> <span class="variable">ctx</span>.<span class="variable">db</span>.<span class="function">insert</span>(<span class="string">"users"</span>, <span class="variable">args</span>);
+  <span class="va">handler</span>: <span class="kw">async</span> (<span class="va">ctx</span>, <span class="va">args</span>) <span class="kw">=&gt;</span> {
+    <span class="kw">return</span> <span class="va">ctx</span>.<span class="va">db</span>.<span class="fn">insert</span>(<span class="st">"users"</span>, <span class="va">args</span>);
   },
 });</code></pre>
-                </div>
-            </div>
-
-            <div class="output-files">
-                <p class="output-files-label">Generated files per table:</p>
-                <div class="file-tags">
-                    <span class="file-tag">schema.ts</span>
-                    <span class="file-tag">queries.ts</span>
-                    <span class="file-tag">mutations.ts</span>
-                    <span class="file-tag">actions.ts</span>
-                    <span class="file-tag">http.ts</span>
-                    <span class="file-tag">types.ts</span>
-                    <span class="file-tag">hooks.ts</span>
-                </div>
-            </div>
         </div>
-    </section>
+      </div>
 
-    <section id="demo" class="demo-section">
-        <div class="container">
-            <div class="section-title">
-                <h2>How it <span>works</span></h2>
-                <p>Run the interactive wizard or pass flags directly. Either way, three steps: connect, introspect, generate.</p>
-            </div>
-
-            <div class="terminal-container">
-                <div class="terminal-header">
-                    <div class="dots">
-                        <span></span><span></span><span></span>
-                    </div>
-                    <div class="terminal-title">terminal</div>
-                </div>
-                <div class="terminal-body" id="terminal-output">
-                    <div class="line"><span class="prompt">$</span> npx @Heyoub/sunsetter-aqm wizard</div>
-                    <div class="line typing" data-delay="800"><span class="dim">? Database type:</span> PostgreSQL</div>
-                    <div class="line typing" data-delay="1600"><span class="dim">? Connection string:</span> postgresql://localhost:5432/myapp</div>
-                    <div class="line typing" data-delay="2800"><span class="success">&#10003;</span> Connected to PostgreSQL 15.4</div>
-                    <div class="line typing" data-delay="3600"><span class="success">&#10003;</span> Found 14 tables, 3 enums, 42 indexes in schema "public"</div>
-                    <div class="line typing" data-delay="4400"><span class="highlight">CHECK:</span> users.age >= 18 AND age <= 120 → v.number().gte(18).lte(120)</div>
-                    <div class="line typing" data-delay="5200"><span class="highlight">ENUM:</span> role_type (admin, editor, viewer) → v.union(v.literal(...))</div>
-                    <div class="line typing" data-delay="6000"><span class="highlight">FK:</span> users.org_id → organizations._id → v.id("organizations")</div>
-                    <div class="line typing" data-delay="7000"><span class="success">&#10003;</span> Generated 14 table files + schema.ts + types.ts + hooks.ts</div>
-                    <div class="line typing" data-delay="8000"><span class="dim">Output:</span> ./convex/</div>
-                </div>
-            </div>
-
-            <div class="commands-list">
-                <div class="command-item">
-                    <code>sunsetter wizard</code>
-                    <span>Interactive guided migration</span>
-                </div>
-                <div class="command-item">
-                    <code>sunsetter generate --db postgres --url &lt;conn&gt;</code>
-                    <span>Generate code without moving data</span>
-                </div>
-                <div class="command-item">
-                    <code>sunsetter migrate --mode schema-and-data</code>
-                    <span>Full migration with data transfer</span>
-                </div>
-                <div class="command-item">
-                    <code>sunsetter introspect</code>
-                    <span>Inspect source schema without writing files</span>
-                </div>
-                <div class="command-item">
-                    <code>sunsetter preflight</code>
-                    <span>Validate everything before migrating</span>
-                </div>
-            </div>
+      <div class="output-file-list reveal-up">
+        <span class="file-list-label">Generated per table:</span>
+        <div class="file-chips">
+          <span class="chip">schema.ts</span>
+          <span class="chip">queries.ts</span>
+          <span class="chip">mutations.ts</span>
+          <span class="chip">actions.ts</span>
+          <span class="chip">http.ts</span>
+          <span class="chip">types.ts</span>
+          <span class="chip">hooks.ts</span>
+          <span class="chip">scheduled.ts</span>
+          <span class="chip new-chip">crons.ts ✦</span>
+          <span class="chip new-chip">convex.config.ts ✦</span>
+          <span class="chip new-chip">auth.ts ✦</span>
         </div>
-    </section>
+      </div>
+    </div>
+  </section>
 
-    <section class="postgres-deep">
-        <div class="container">
-            <div class="postgres-card">
-                <div class="postgres-logo">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15.5l-3.5-3.5 1.41-1.41L11 14.67l4.09-4.09L16.5 12 11 17.5z">
-                        </path>
-                    </svg>
-                    <span>PostgreSQL Deep Support</span>
-                </div>
-                <div class="postgres-grid">
-                    <div class="postgres-item">
-                        <h4>Enum Detection</h4>
-                        <p>Queries <code>pg_enum</code> directly and maps each value to <code>v.union(v.literal(...))</code>. No manual mapping. Works with custom types and composite enums.</p>
-                    </div>
-                    <div class="postgres-item">
-                        <h4>Partition & View Handling</h4>
-                        <p>Detects RANGE/LIST/HASH partitioned tables and merges them into single Convex collections. Materialized views are marked read-only with a warning about refresh logic.</p>
-                    </div>
-                    <div class="postgres-item">
-                        <h4>Extension Types</h4>
-                        <p>Maps <code>ltree</code>, <code>hstore</code>, <code>cube</code>, <code>cidr/inet</code>, <code>isbn</code>, and other extension types to appropriate Convex validators.</p>
-                    </div>
-                </div>
-            </div>
+  <!-- DEMO -->
+  <section id="demo" class="section demo-section">
+    <div class="container">
+      <div class="section-header reveal-up">
+        <h2>How it <span class="gradient-text">works</span></h2>
+        <p>Three steps: connect, introspect, generate. Takes about 30 seconds on a real schema.</p>
+      </div>
+      <div class="terminal-wrap reveal-card" data-i="0">
+        <div class="term-header">
+          <div class="term-dots"><span></span><span></span><span></span></div>
+          <span class="term-title">bash</span>
+          <span class="term-badge">LIVE</span>
         </div>
-    </section>
-
-    <section class="mcp-section">
-        <div class="container">
-            <div class="mcp-card">
-                <div class="mcp-content">
-                    <h3>Claude MCP Integration</h3>
-                    <p>SunSetter ships with a built-in <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol</a> server. Connect it to Claude Code or Claude Desktop and let the AI plan your migration, analyze your schema, and run the tool for you.</p>
-                    <div class="mcp-tools">
-                        <code>sunsetter --mcp</code>
-                    </div>
-                </div>
-            </div>
+        <div class="term-body" id="terminal-output">
+          <div class="tline show"><span class="t-prompt">$</span> npx @heyoub/sunsetter-aqm wizard</div>
+          <div class="tline" data-delay="700"><span class="t-dim">? Database type</span> <span class="t-val">PostgreSQL</span></div>
+          <div class="tline" data-delay="1300"><span class="t-dim">? Connection string</span> <span class="t-val">postgresql://localhost:5432/myapp</span></div>
+          <div class="tline" data-delay="2200"><span class="t-ok">✓</span> Connected to PostgreSQL 15.4 (Amazon Aurora)</div>
+          <div class="tline" data-delay="3000"><span class="t-ok">✓</span> Found <span class="t-num">14</span> tables, <span class="t-num">3</span> enums, <span class="t-num">42</span> indexes in schema <span class="t-val">"public"</span></div>
+          <div class="tline" data-delay="3800"><span class="t-hl">CHECK:</span> users.age &gt;= 18 AND age &lt;= 120 → v.number().gte(18).lte(120)</div>
+          <div class="tline" data-delay="4500"><span class="t-hl">CHECK:</span> price &gt; 0 → v.number().gt(0)</div>
+          <div class="tline" data-delay="5100"><span class="t-hl">ENUM:</span> role_type (admin, editor, viewer) → v.union(v.literal(...))</div>
+          <div class="tline" data-delay="5700"><span class="t-hl">FK:</span> users.org_id → organizations._id → v.id("organizations")</div>
+          <div class="tline" data-delay="6300"><span class="t-hl">BYTEA:</span> users.avatar → v.id("_storage") + file storage actions</div>
+          <div class="tline" data-delay="7000"><span class="t-hl">AUTH:</span> users table with email+password detected → auth.ts scaffolded</div>
+          <div class="tline" data-delay="7700"><span class="t-hl">CRON:</span> users.deleted_at detected → daily purge cron generated</div>
+          <div class="tline" data-delay="8400"><span class="t-hl">COMPONENTS:</span> 3 write-heavy tables → rate-limiter added to convex.config.ts</div>
+          <div class="tline" data-delay="9200"><span class="t-ok">✓</span> Generated <span class="t-num">14</span> table dirs + schema.ts + crons.ts + convex.config.ts + auth.ts</div>
+          <div class="tline" data-delay="10000"><span class="t-dim">Output:</span> <span class="t-val">./convex/</span></div>
         </div>
-    </section>
+      </div>
 
-    <section class="cta-section">
-        <div class="container">
-            <h2>Free and open source</h2>
-            <p>SunSetter is MIT-licensed. Use it, fork it, contribute to it. If you're doing a large or complex migration and want hands-on help, consulting is available.</p>
-            <div class="cta-actions">
-                <a href="https://github.com/Heyoub/SunSetter_AQM" class="btn-primary">Get Started</a>
-                <a href="https://heyoub.dev" class="btn-text">Consulting →</a>
-            </div>
+      <div class="cmd-grid reveal-up">
+        <div class="cmd-row">
+          <code>sunsetter wizard</code>
+          <span>Interactive guided setup</span>
         </div>
-    </section>
-
-    <footer>
-        <div class="container">
-            <p>&copy; 2025&ndash;2026 <a href="https://heyoub.dev">Heyoub</a> &middot; SunSetter AQM+ &middot; Built for the Convex community</p>
+        <div class="cmd-row">
+          <code>sunsetter generate --db postgres --url &lt;conn&gt;</code>
+          <span>Generate code only, no data move</span>
         </div>
-    </footer>
+        <div class="cmd-row">
+          <code>sunsetter migrate --mode schema-and-data</code>
+          <span>Full migration with data transfer</span>
+        </div>
+        <div class="cmd-row">
+          <code>sunsetter introspect</code>
+          <span>Print schema analysis without writing</span>
+        </div>
+        <div class="cmd-row">
+          <code>sunsetter preflight</code>
+          <span>Validate before migrating</span>
+        </div>
+        <div class="cmd-row">
+          <code>sunsetter --mcp</code>
+          <span>Start MCP server for Claude</span>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    <script src="script.js"></script>
+  <!-- MCP SECTION -->
+  <section class="section mcp-section">
+    <div class="container">
+      <div class="mcp-card reveal-card" data-i="0">
+        <div class="mcp-left">
+          <div class="mcp-glyph">⬡</div>
+          <h3>Claude MCP Integration</h3>
+          <p>SunSetter ships a built-in <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol</a> server. Connect it to Claude Code or Claude Desktop and let the AI analyze your schema, plan the migration, and run the tool — without leaving your conversation.</p>
+          <code class="mcp-cmd">sunsetter --mcp</code>
+        </div>
+        <div class="mcp-right">
+          <div class="mcp-tools">
+            <div class="mcp-tool"><span class="tool-name">connect</span><span class="tool-desc">Connect to source database</span></div>
+            <div class="mcp-tool"><span class="tool-name">introspect</span><span class="tool-desc">Analyze schema structure</span></div>
+            <div class="mcp-tool"><span class="tool-name">generate</span><span class="tool-desc">Generate Convex code</span></div>
+            <div class="mcp-tool"><span class="tool-name">migrate</span><span class="tool-desc">Execute migration</span></div>
+            <div class="mcp-tool"><span class="tool-name">rollback</span><span class="tool-desc">Undo last migration</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section cta-section">
+    <div class="container cta-inner reveal-up">
+      <h2>Free and open source</h2>
+      <p>MIT-licensed. Use it, fork it, contribute to it. If you have a complex migration and want hands-on help, consulting is available.</p>
+      <div class="cta-btns">
+        <a href="https://github.com/heyoub/SunSetter_AQM" class="btn-primary" target="_blank" rel="noopener">Get Started</a>
+        <a href="https://heyoub.dev" class="btn-text" target="_blank" rel="noopener">Consulting →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container footer-inner">
+      <p>&copy; 2025&ndash;2026 <a href="https://heyoub.dev">Heyoub</a> &middot; SunSetter AQM+ &middot; Built for the Convex community</p>
+    </div>
+  </footer>
+
+  <!-- GSAP (global, loaded before module so script.js can reference gsap) -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+
+  <!-- Three.js importmap -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module" src="script.js"></script>
 </body>
-
 </html>

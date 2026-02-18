@@ -3,7 +3,7 @@
   "mcpServers": {
     "sunsetter-aqm": {
       "command": "npx",
-      "args": ["-y", "@Heyoub/sunsetter-aqm", "--mcp"]
+      "args": ["-y", "@heyoub/sunsetter-aqm", "--mcp"]
     }
   }
 }

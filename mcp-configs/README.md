@@ -13,7 +13,7 @@ Add to your `~/.claude/settings.json`:
   "mcpServers": {
     "sunsetter-aqm": {
       "command": "npx",
-      "args": ["-y", "@Heyoub/sunsetter-aqm", "--mcp"]
+      "args": ["-y", "@heyoub/sunsetter-aqm", "--mcp"]
     }
   }
 }
@@ -56,7 +56,7 @@ Add to your VSCode settings (`settings.json`):
   "claude.mcpServers": {
     "sunsetter-aqm": {
       "command": "npx",
-      "args": ["-y", "@Heyoub/sunsetter-aqm", "--mcp"]
+      "args": ["-y", "@heyoub/sunsetter-aqm", "--mcp"]
     }
   }
 }

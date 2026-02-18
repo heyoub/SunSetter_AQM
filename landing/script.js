@@ -1,34 +1,26 @@
 document.addEventListener('DOMContentLoaded', () => {
     const lines = document.querySelectorAll('.terminal-body .line');
 
-    // Simple typewriter sequence
-    lines.forEach((line, index) => {
+    // Typewriter sequence for terminal demo
+    lines.forEach((line) => {
         const delay = parseInt(line.getAttribute('data-delay') || '0');
         setTimeout(() => {
             line.classList.add('visible');
-
-            // If it's the last line, maybe do a scroll effect or keep it static
-            if (index === lines.length - 1) {
-                line.style.borderRight = 'none';
-            }
         }, delay);
     });
 
     // Smooth scroll for nav links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
-            e.preventDefault();
-            document.querySelector(this.getAttribute('href')).scrollIntoView({
-                behavior: 'smooth'
-            });
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                e.preventDefault();
+                target.scrollIntoView({ behavior: 'smooth' });
+            }
         });
     });
 
-    // Reveal on scroll effect
-    const observerOptions = {
-        threshold: 0.1
-    };
-
+    // Reveal on scroll
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -36,12 +28,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 entry.target.style.transform = 'translateY(0)';
             }
         });
-    }, observerOptions);
+    }, { threshold: 0.1 });
 
-    document.querySelectorAll('.feature-card, .preview-text, .preview-code-box').forEach(el => {
+    const revealElements = document.querySelectorAll(
+        '.feature-card, .preview-code-box, .postgres-card, .mcp-card, .command-item, .output-files'
+    );
+
+    revealElements.forEach(el => {
         el.style.opacity = '0';
         el.style.transform = 'translateY(20px)';
-        el.style.transition = 'all 0.6s ease-out';
+        el.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
         observer.observe(el);
     });
 });

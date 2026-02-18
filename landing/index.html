@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SunSetter AQM+ | Enterprise Database to Convex Migration</title>
+    <title>SunSetter AQM+ | Migrate SQL Databases to Convex</title>
     <meta name="description"
-        content="The 110% Database Migration Suite for Convex. Auto-converts SQL constraints to Validators, auto-suggests Indexes, and generates type-safe Mutations/Queries.">
+        content="Open-source CLI that migrates PostgreSQL, MySQL, SQLite, and SQL Server to Convex. Converts CHECK constraints to validators, suggests indexes, and generates queries, mutations, and actions.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -21,12 +21,12 @@
     <nav>
         <div class="container">
             <div class="logo">
-                <span class="sun">☀️</span> SunSetter <span>AQM+</span>
+                SunSetter <span>AQM+</span>
             </div>
             <div class="nav-links">
                 <a href="#features">Features</a>
+                <a href="#output">Output</a>
                 <a href="#demo">Demo</a>
-                <a href="https://heyoub.dev" class="btn-secondary">Consulting</a>
                 <a href="https://github.com/Heyoub/SunSetter_AQM" class="btn-secondary">GitHub</a>
             </div>
         </div>
@@ -35,36 +35,26 @@
     <header class="hero">
         <div class="container">
             <div class="hero-content">
-                <div class="badge">AQM = Actions · Queries · Mutations</div>
-                <h1>The "110%" Database Migration Suite for <span>Convex</span></h1>
-                <p class="subtitle">Stop losing your schema logic in migration. SunSetter parses SQL constraints into
-                    Convex Validators and auto-suggests optimized indexes.</p>
+                <div class="badge">AQM = Actions, Queries, Mutations</div>
+                <h1>Migrate your SQL database to <span>Convex</span></h1>
+                <p class="subtitle">SunSetter reads your existing schema&mdash;tables, constraints, enums, foreign keys&mdash;and generates a complete Convex backend. Schema, queries, mutations, actions, types, and React hooks, all from one command.</p>
+
+                <div class="install-box">
+                    <code>npx @Heyoub/sunsetter-aqm wizard</code>
+                </div>
 
                 <div class="hero-actions">
-                    <a href="#demo" class="btn-primary">Watch the Wizard</a>
-                    <a href="#features" class="btn-text">Explore Features →</a>
+                    <a href="https://github.com/Heyoub/SunSetter_AQM" class="btn-primary">View on GitHub</a>
+                    <a href="#demo" class="btn-text">See it run →</a>
                 </div>
             </div>
 
-            <div class="terminal-container">
-                <div class="terminal-header">
-                    <div class="dots">
-                        <span></span><span></span><span></span>
-                    </div>
-                    <div class="terminal-title">sunsetter --wizard</div>
-                </div>
-                <div class="terminal-body" id="terminal-output">
-                    <div class="line"><span class="prompt">$</span> sunsetter wizard</div>
-                    <div class="line typing" data-delay="1000">⏳ Introspecting PostgreSQL schema...</div>
-                    <div class="line typing" data-delay="3000"><span class="success">✓</span> Found 14 tables in schema
-                        "public"</div>
-                    <div class="line typing" data-delay="4000">🧠 Analyzing SQL Constraints...</div>
-                    <div class="line typing" data-delay="5000"><span class="highlight">Check found:</span> (age >= 18) →
-                        v.number().gte(18)</div>
-                    <div class="line typing" data-delay="6000">⚡ Generating Production Code...</div>
-                    <div class="line typing" data-delay="8000"><span class="success">✓</span> Migration Complete!
-                        Output: ./convex</div>
-                </div>
+            <div class="db-support">
+                <span class="db-label">Works with:</span>
+                <span class="db-tag">PostgreSQL</span>
+                <span class="db-tag">MySQL</span>
+                <span class="db-tag">SQLite</span>
+                <span class="db-tag">SQL Server</span>
             </div>
         </div>
     </header>
@@ -72,68 +62,165 @@
     <section id="features" class="features">
         <div class="container">
             <div class="section-title">
-                <h2>Why Developers Choose <span>SunSetter</span></h2>
-                <p>Enterprise-grade logic preservation that goes beyond simple data moving.</p>
+                <h2>What it <span>does</span></h2>
+                <p>Most migration tools move your data and drop everything else. SunSetter carries over your schema logic too.</p>
             </div>
 
             <div class="features-grid">
                 <div class="feature-card">
-                    <div class="icon">🧠</div>
-                    <h3>Intelligent Constraints</h3>
-                    <p>Don't drop your <code>CHECK</code> constraints. We parse SQL ASTs into Convex <code>v</code>
-                        validators automatically.</p>
+                    <h3>Constraint Translation</h3>
+                    <p>SQL <code>CHECK</code> constraints are parsed and converted to Convex validators. <code>CHECK (age >= 18 AND age <= 120)</code> becomes <code>v.number().gte(18).lte(120)</code>.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="icon">⚡</div>
-                    <h3>Auto-Index Optimization</h3>
-                    <p>SunSetter analyzes foreign keys and query patterns to suggest high-impact Convex indexes for you.
-                    </p>
+                    <h3>Index Suggestions</h3>
+                    <p>Analyzes your foreign keys and column usage to suggest Convex indexes. Each suggestion includes the field, a priority level, and copy-paste-ready code.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="icon">🛡️</div>
-                    <h3>Resilient Streaming</h3>
-                    <p>O(1) memory usage via cursor-based pagination. Handles GBs of data without breaking a sweat.</p>
+                    <h3>Full Code Generation</h3>
+                    <p>Generates <code>schema.ts</code>, typed queries, mutations, actions, HTTP endpoints, TypeScript interfaces, and React hooks for every table.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="icon">✨</div>
-                    <h3>Full API Generation</h3>
-                    <p>Gets you from zero to backend in seconds with generated Mutations, Queries, and Actions.</p>
+                    <h3>Streaming Migration</h3>
+                    <p>Moves data with cursor-based pagination so memory stays constant regardless of table size. Supports parallel table migration, checkpointing, and rollback.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>PostgreSQL Extras</h3>
+                    <p>Auto-detects <code>pg_enum</code> types and maps them to <code>v.union()</code>. Handles partitioned tables, materialized views, and extension types like <code>ltree</code> and <code>hstore</code>.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Production Tooling</h3>
+                    <p>Dry-run mode, Slack notifications on migration status, PII data masking for GDPR, post-migration row-count verification, and an MCP server for Claude integration.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="code-preview">
+    <section id="output" class="code-preview">
         <div class="container">
-            <div class="preview-split">
-                <div class="preview-text">
-                    <h2>From Legacy SQL to <span>Modern Type-Safety</span></h2>
-                    <p>SunSetter converts complex SQL relationships and constraints into beautiful, readable Convex
-                        code.</p>
-                    <ul class="benefit-list">
-                        <li>Enums auto-detected & mapped to <code>v.union()</code></li>
-                        <li>Primary/Foreign keys mapped to <code>v.id()</code></li>
-                        <li>JSONB fields mapped to <code>v.any()</code> or <code>v.array()</code></li>
-                    </ul>
-                </div>
+            <div class="section-title">
+                <h2>What you <span>get</span></h2>
+                <p>Point SunSetter at a SQL database and it writes your Convex backend for you.</p>
+            </div>
+
+            <div class="output-grid">
                 <div class="preview-code-box">
-                    <div class="code-header">schema.ts</div>
+                    <div class="code-header">convex/schema.ts</div>
                     <pre><code><span class="keyword">export default</span> <span class="function">defineSchema</span>({
   <span class="variable">users</span>: <span class="function">defineTable</span>({
     <span class="variable">name</span>: <span class="variable">v</span>.<span class="keyword">string</span>(),
-    <span class="variable">age</span>: <span class="variable">v</span>.<span class="keyword">number</span>().<span class="function">gte</span>(<span class="number">18</span>),
+    <span class="variable">email</span>: <span class="variable">v</span>.<span class="keyword">string</span>(),
+    <span class="variable">age</span>: <span class="variable">v</span>.<span class="keyword">number</span>().<span class="function">gte</span>(<span class="number">18</span>).<span class="function">lte</span>(<span class="number">120</span>),
     <span class="variable">role</span>: <span class="variable">v</span>.<span class="function">union</span>(
       <span class="variable">v</span>.<span class="function">literal</span>(<span class="string">"admin"</span>),
-      <span class="variable">v</span>.<span class="function">literal</span>(<span class="string">"user"</span>)
-    )
-  }).<span class="function">index</span>(<span class="string">"by_role"</span>, [<span class="string">"role"</span>])
+      <span class="variable">v</span>.<span class="function">literal</span>(<span class="string">"editor"</span>),
+      <span class="variable">v</span>.<span class="function">literal</span>(<span class="string">"viewer"</span>)
+    ),
+    <span class="variable">org_id</span>: <span class="variable">v</span>.<span class="function">id</span>(<span class="string">"organizations"</span>),
+  })
+    .<span class="function">index</span>(<span class="string">"by_email"</span>, [<span class="string">"email"</span>])
+    .<span class="function">index</span>(<span class="string">"by_org"</span>, [<span class="string">"org_id"</span>])
+    .<span class="function">searchIndex</span>(<span class="string">"search_name"</span>, {
+      <span class="variable">searchField</span>: <span class="string">"name"</span>,
+    }),
 });</code></pre>
+                </div>
+                <div class="preview-code-box">
+                    <div class="code-header">convex/users.ts</div>
+                    <pre><code><span class="keyword">export const</span> <span class="variable">list</span> = <span class="function">query</span>({
+  <span class="variable">args</span>: {
+    <span class="variable">paginationOpts</span>: <span class="variable">paginationOptsValidator</span>,
+  },
+  <span class="variable">handler</span>: <span class="keyword">async</span> (<span class="variable">ctx</span>, <span class="variable">args</span>) <span class="keyword">=></span> {
+    <span class="keyword">return</span> <span class="variable">ctx</span>.<span class="variable">db</span>
+      .<span class="function">query</span>(<span class="string">"users"</span>)
+      .<span class="function">paginate</span>(<span class="variable">args</span>.<span class="variable">paginationOpts</span>);
+  },
+});
+
+<span class="keyword">export const</span> <span class="variable">create</span> = <span class="function">mutation</span>({
+  <span class="variable">args</span>: {
+    <span class="variable">name</span>: <span class="variable">v</span>.<span class="keyword">string</span>(),
+    <span class="variable">email</span>: <span class="variable">v</span>.<span class="keyword">string</span>(),
+    <span class="variable">age</span>: <span class="variable">v</span>.<span class="keyword">number</span>(),
+    <span class="variable">role</span>: <span class="variable">v</span>.<span class="keyword">string</span>(),
+    <span class="variable">org_id</span>: <span class="variable">v</span>.<span class="function">id</span>(<span class="string">"organizations"</span>),
+  },
+  <span class="variable">handler</span>: <span class="keyword">async</span> (<span class="variable">ctx</span>, <span class="variable">args</span>) <span class="keyword">=></span> {
+    <span class="keyword">return</span> <span class="variable">ctx</span>.<span class="variable">db</span>.<span class="function">insert</span>(<span class="string">"users"</span>, <span class="variable">args</span>);
+  },
+});</code></pre>
+                </div>
+            </div>
+
+            <div class="output-files">
+                <p class="output-files-label">Generated files per table:</p>
+                <div class="file-tags">
+                    <span class="file-tag">schema.ts</span>
+                    <span class="file-tag">queries.ts</span>
+                    <span class="file-tag">mutations.ts</span>
+                    <span class="file-tag">actions.ts</span>
+                    <span class="file-tag">http.ts</span>
+                    <span class="file-tag">types.ts</span>
+                    <span class="file-tag">hooks.ts</span>
                 </div>
             </div>
         </div>
     </section>
 
-    <section id="postgres-deep" class="postgres-deep">
+    <section id="demo" class="demo-section">
+        <div class="container">
+            <div class="section-title">
+                <h2>How it <span>works</span></h2>
+                <p>Run the interactive wizard or pass flags directly. Either way, three steps: connect, introspect, generate.</p>
+            </div>
+
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <div class="dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div class="terminal-title">terminal</div>
+                </div>
+                <div class="terminal-body" id="terminal-output">
+                    <div class="line"><span class="prompt">$</span> npx @Heyoub/sunsetter-aqm wizard</div>
+                    <div class="line typing" data-delay="800"><span class="dim">? Database type:</span> PostgreSQL</div>
+                    <div class="line typing" data-delay="1600"><span class="dim">? Connection string:</span> postgresql://localhost:5432/myapp</div>
+                    <div class="line typing" data-delay="2800"><span class="success">&#10003;</span> Connected to PostgreSQL 15.4</div>
+                    <div class="line typing" data-delay="3600"><span class="success">&#10003;</span> Found 14 tables, 3 enums, 42 indexes in schema "public"</div>
+                    <div class="line typing" data-delay="4400"><span class="highlight">CHECK:</span> users.age >= 18 AND age <= 120 → v.number().gte(18).lte(120)</div>
+                    <div class="line typing" data-delay="5200"><span class="highlight">ENUM:</span> role_type (admin, editor, viewer) → v.union(v.literal(...))</div>
+                    <div class="line typing" data-delay="6000"><span class="highlight">FK:</span> users.org_id → organizations._id → v.id("organizations")</div>
+                    <div class="line typing" data-delay="7000"><span class="success">&#10003;</span> Generated 14 table files + schema.ts + types.ts + hooks.ts</div>
+                    <div class="line typing" data-delay="8000"><span class="dim">Output:</span> ./convex/</div>
+                </div>
+            </div>
+
+            <div class="commands-list">
+                <div class="command-item">
+                    <code>sunsetter wizard</code>
+                    <span>Interactive guided migration</span>
+                </div>
+                <div class="command-item">
+                    <code>sunsetter generate --db postgres --url &lt;conn&gt;</code>
+                    <span>Generate code without moving data</span>
+                </div>
+                <div class="command-item">
+                    <code>sunsetter migrate --mode schema-and-data</code>
+                    <span>Full migration with data transfer</span>
+                </div>
+                <div class="command-item">
+                    <code>sunsetter introspect</code>
+                    <span>Inspect source schema without writing files</span>
+                </div>
+                <div class="command-item">
+                    <code>sunsetter preflight</code>
+                    <span>Validate everything before migrating</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="postgres-deep">
         <div class="container">
             <div class="postgres-card">
                 <div class="postgres-logo">
@@ -142,43 +229,54 @@
                             d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15.5l-3.5-3.5 1.41-1.41L11 14.67l4.09-4.09L16.5 12 11 17.5z">
                         </path>
                     </svg>
-                    <span>PostgreSQL Intelligence</span>
+                    <span>PostgreSQL Deep Support</span>
                 </div>
                 <div class="postgres-grid">
                     <div class="postgres-item">
-                        <h4>Auto-Enum Detection</h4>
-                        <p>Automatically queries <code>pg_enum</code> and maps values directly to Convex
-                            <code>v.union()</code> literals. No manual mapping required.
-                        </p>
+                        <h4>Enum Detection</h4>
+                        <p>Queries <code>pg_enum</code> directly and maps each value to <code>v.union(v.literal(...))</code>. No manual mapping. Works with custom types and composite enums.</p>
                     </div>
                     <div class="postgres-item">
-                        <h4>Partition Awareness</h4>
-                        <p>Detects partitioned tables and materialized views, merging data intelligently into Convex
-                            collections while preserving references.</p>
+                        <h4>Partition & View Handling</h4>
+                        <p>Detects RANGE/LIST/HASH partitioned tables and merges them into single Convex collections. Materialized views are marked read-only with a warning about refresh logic.</p>
                     </div>
                     <div class="postgres-item">
-                        <h4>Extension Support</h4>
-                        <p>Built-in mappers for PostgreSQL-specific types like <code>ltree</code>, <code>hstore</code>,
-                            <code>cube</code>, and <code>geometry</code>.
-                        </p>
+                        <h4>Extension Types</h4>
+                        <p>Maps <code>ltree</code>, <code>hstore</code>, <code>cube</code>, <code>cidr/inet</code>, <code>isbn</code>, and other extension types to appropriate Convex validators.</p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
+    <section class="mcp-section">
+        <div class="container">
+            <div class="mcp-card">
+                <div class="mcp-content">
+                    <h3>Claude MCP Integration</h3>
+                    <p>SunSetter ships with a built-in <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol</a> server. Connect it to Claude Code or Claude Desktop and let the AI plan your migration, analyze your schema, and run the tool for you.</p>
+                    <div class="mcp-tools">
+                        <code>sunsetter --mcp</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <section class="cta-section">
         <div class="container">
-            <h2>Need Expert Help With Your Migration?</h2>
-            <p>The tool is free. For complex migrations, architecture decisions, and production rollout support:</p>
-            <a href="https://heyoub.dev" class="btn-primary">Get Consulting Help</a>
+            <h2>Free and open source</h2>
+            <p>SunSetter is MIT-licensed. Use it, fork it, contribute to it. If you're doing a large or complex migration and want hands-on help, consulting is available.</p>
+            <div class="cta-actions">
+                <a href="https://github.com/Heyoub/SunSetter_AQM" class="btn-primary">Get Started</a>
+                <a href="https://heyoub.dev" class="btn-text">Consulting →</a>
+            </div>
         </div>
     </section>
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 <a href="https://heyoub.dev">Heyoub</a> · SunSetter AQM+ · Built for the Convex community</p>
+            <p>&copy; 2025&ndash;2026 <a href="https://heyoub.dev">Heyoub</a> &middot; SunSetter AQM+ &middot; Built for the Convex community</p>
         </div>
     </footer>
 

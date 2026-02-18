@@ -14,7 +14,12 @@
 import type { TableInfo } from '../../introspector/schema-introspector.js';
 import { toCamelCase, toPascalCase } from '../../shared/types.js';
 
-const EXPIRY_COLUMN_PATTERNS = ['expires_at', 'expiry_at', 'expiration_at', 'valid_until'];
+const EXPIRY_COLUMN_PATTERNS = [
+  'expires_at',
+  'expiry_at',
+  'expiration_at',
+  'valid_until',
+];
 const STATUS_COLUMN_PATTERNS = ['status', 'state'];
 
 interface ScheduledHelperAnalysis {
@@ -34,11 +39,17 @@ function analyzeTable(table: TableInfo): ScheduledHelperAnalysis {
 
   for (const col of table.columns) {
     const name = col.columnName.toLowerCase();
-    if (!analysis.expiryField && EXPIRY_COLUMN_PATTERNS.some(p => name === p)) {
+    if (
+      !analysis.expiryField &&
+      EXPIRY_COLUMN_PATTERNS.some((p) => name === p)
+    ) {
       analysis.hasExpiry = true;
       analysis.expiryField = col.columnName;
     }
-    if (!analysis.statusField && STATUS_COLUMN_PATTERNS.some(p => name === p)) {
+    if (
+      !analysis.statusField &&
+      STATUS_COLUMN_PATTERNS.some((p) => name === p)
+    ) {
       analysis.hasStatus = true;
       analysis.statusField = col.columnName;
     }
@@ -175,14 +186,15 @@ export interface ScheduledHelperResult {
  * Generates scheduled function helpers for a single table.
  * Returns empty content if no scheduling patterns are detected.
  */
-export function generateScheduledHelpers(table: TableInfo): ScheduledHelperResult {
+export function generateScheduledHelpers(
+  table: TableInfo
+): ScheduledHelperResult {
   const analysis = analyzeTable(table);
 
   if (!analysis.hasExpiry && !analysis.hasStatus) {
     return { content: '', helperCount: 0 };
   }
 
-  const pascal = toPascalCase(table.tableName);
   const helpers: string[] = [];
   let helperCount = 0;
 

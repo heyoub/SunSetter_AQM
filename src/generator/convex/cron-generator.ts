@@ -13,10 +13,21 @@ import type { TableInfo } from '../../introspector/schema-introspector.js';
 import { toCamelCase, toPascalCase } from '../../shared/types.js';
 
 // Column name patterns that indicate timestamp-based cleanup opportunities
-const CREATED_AT_PATTERNS = ['created_at', 'createdat', 'created_on', 'createdon'];
+const CREATED_AT_PATTERNS = [
+  'created_at',
+  'createdat',
+  'created_on',
+  'createdon',
+];
 const EXPIRY_PATTERNS = [
-  'expires_at', 'expiresat', 'expiry_at', 'expiry', 'expired_at',
-  'expiration_at', 'valid_until', 'valid_to',
+  'expires_at',
+  'expiresat',
+  'expiry_at',
+  'expiry',
+  'expired_at',
+  'expiration_at',
+  'valid_until',
+  'valid_to',
 ];
 const SOFT_DELETE_PATTERNS = ['deleted_at', 'deletedat', 'soft_deleted_at'];
 const STATUS_PATTERNS = ['status', 'state'];
@@ -53,19 +64,25 @@ function analyzeTable(table: TableInfo): TableCronAnalysis {
   for (const col of table.columns) {
     const name = col.columnName.toLowerCase();
 
-    if (!analysis.createdAtField && CREATED_AT_PATTERNS.some(p => name === p)) {
+    if (
+      !analysis.createdAtField &&
+      CREATED_AT_PATTERNS.some((p) => name === p)
+    ) {
       analysis.hasCreatedAt = true;
       analysis.createdAtField = col.columnName;
     }
-    if (!analysis.expiryField && EXPIRY_PATTERNS.some(p => name === p)) {
+    if (!analysis.expiryField && EXPIRY_PATTERNS.some((p) => name === p)) {
       analysis.hasExpiry = true;
       analysis.expiryField = col.columnName;
     }
-    if (!analysis.softDeleteField && SOFT_DELETE_PATTERNS.some(p => name === p)) {
+    if (
+      !analysis.softDeleteField &&
+      SOFT_DELETE_PATTERNS.some((p) => name === p)
+    ) {
       analysis.hasSoftDelete = true;
       analysis.softDeleteField = col.columnName;
     }
-    if (!analysis.statusField && STATUS_PATTERNS.some(p => name === p)) {
+    if (!analysis.statusField && STATUS_PATTERNS.some((p) => name === p)) {
       analysis.hasStatusColumn = true;
       analysis.statusField = col.columnName;
     }
@@ -244,9 +261,12 @@ export interface CronGeneratorResult {
  * Analyzes a set of tables and generates a complete convex/crons.ts file.
  */
 export function generateCrons(tables: TableInfo[]): CronGeneratorResult {
-  const analyses = tables.map(analyzeTable).filter(a =>
-    a.hasExpiry || a.hasSoftDelete || a.hasCreatedAt || a.hasStatusColumn
-  );
+  const analyses = tables
+    .map(analyzeTable)
+    .filter(
+      (a) =>
+        a.hasExpiry || a.hasSoftDelete || a.hasCreatedAt || a.hasStatusColumn
+    );
 
   if (analyses.length === 0) {
     return {
@@ -270,8 +290,9 @@ export function generateCrons(tables: TableInfo[]): CronGeneratorResult {
     allSchedules.push(...schedules);
   }
 
-  const cronLines = allSchedules.map(s =>
-    `crons.${s.method.replace('crons.', '')}(\n  "${s.description}",\n  ${s.args},\n  ${s.mutationRef}\n);`
+  const cronLines = allSchedules.map(
+    (s) =>
+      `crons.${s.method.replace('crons.', '')}(\n  "${s.description}",\n  ${s.args},\n  ${s.mutationRef}\n);`
   );
 
   const content = `/**

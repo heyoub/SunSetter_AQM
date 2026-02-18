@@ -1,6 +1,9 @@
 # Source files
 src/
 tests/
+
+# Landing page (web only, not part of the npm package)
+landing/
 *.test.ts
 *.spec.ts
 

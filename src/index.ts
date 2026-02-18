@@ -72,7 +72,7 @@ Supports: PostgreSQL, MySQL, SQLite, SQL Server
 `)
     )
     .version(VERSION, '-v, --version', 'Display version number')
-    .option('--tui, -i, --interactive', 'Launch interactive TUI mode')
+    .option('-i, --interactive', 'Launch interactive TUI mode')
     .option('--mcp', 'Start MCP server for Claude integration')
     .option('--json', 'Output results as JSON')
     .option('--no-color', 'Disable colored output')

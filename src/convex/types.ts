@@ -482,6 +482,14 @@ export interface ConvexFunctionGeneratorOptions {
    * Use staged deployment for indexes on large tables
    */
   useStagedIndexes?: boolean;
+  /** Generate crons.ts with scheduled cleanup jobs (default: true) */
+  generateCrons?: boolean;
+  /** Generate convex.config.ts with detected components (default: true) */
+  generateComponentConfig?: boolean;
+  /** Generate per-table scheduled function helpers (default: true) */
+  generateScheduledHelpers?: boolean;
+  /** Generate Convex Auth files if users table detected (default: true) */
+  generateAuth?: boolean;
 }
 
 /**
@@ -512,6 +520,8 @@ export interface GeneratedTableFiles {
   actionCount: number;
   /** HTTP action count */
   httpActionCount: number;
+  /** Generated scheduled function helpers */
+  scheduledHelpers?: string;
 }
 
 /**
@@ -526,6 +536,14 @@ export interface ConvexGeneratedOutput {
   indexFile: string;
   /** Generated HTTP routes file content */
   httpFile?: string;
+  /** Generated crons.ts content */
+  cronsFile?: string;
+  /** Generated convex.config.ts content */
+  componentConfigFile?: string;
+  /** Generated auth.ts content (when users table detected) */
+  authFile?: string;
+  /** Generated auth.config.ts content (when users table detected) */
+  authConfigFile?: string;
   /** Generation statistics */
   stats: {
     totalTables: number;

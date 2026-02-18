@@ -1,5 +1,5 @@
 {
-  "name": "@Heyoub/sunsetter-aqm",
+  "name": "@heyoub/sunsetter-aqm",
   "version": "1.0.0",
   "description": "SunSetter AQM+ - Database to Convex Migration Tool with beautiful TUI. AQM = Actions, Queries, Mutations",
   "main": "dist/index.js",
@@ -35,11 +35,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Heyoub/SunSetter_AQM.git"
+    "url": "https://github.com/heyoub/SunSetter_AQM.git"
   },
   "homepage": "https://sunsetter-aqm.heyoub.dev",
   "bugs": {
-    "url": "https://github.com/Heyoub/SunSetter_AQM/issues"
+    "url": "https://github.com/heyoub/SunSetter_AQM/issues"
   },
   "scripts": {
     "build": "tsc",

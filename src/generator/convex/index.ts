@@ -29,6 +29,10 @@ import { ValidatorGenerator } from './validator-generator.js';
 import { TypeGenerator } from './type-generator.js';
 import { ActionGenerator } from './action-generator.js';
 import { HttpActionGenerator } from './http-action-generator.js';
+import { generateCrons } from './cron-generator.js';
+import { generateComponentConfig } from './component-config-generator.js';
+import { generateScheduledHelpers } from './scheduled-function-generator.js';
+import { generateAuth } from './auth-generator.js';
 
 // Re-export individual generators
 export { SchemaGenerator } from './schema-generator.js';
@@ -38,6 +42,10 @@ export { ValidatorGenerator } from './validator-generator.js';
 export { TypeGenerator } from './type-generator.js';
 export { ActionGenerator } from './action-generator.js';
 export { HttpActionGenerator } from './http-action-generator.js';
+export { generateCrons } from './cron-generator.js';
+export { generateComponentConfig } from './component-config-generator.js';
+export { generateScheduledHelpers } from './scheduled-function-generator.js';
+export { generateAuth, detectAuthTable } from './auth-generator.js';
 
 // Re-export types from schema-generator
 export type {
@@ -66,6 +74,10 @@ const DEFAULT_OPTIONS: ConvexFunctionGeneratorOptions = {
   convexApiVersion: '1.30',
   defaultVectorDimensions: 1536,
   useStagedIndexes: false,
+  generateCrons: true,
+  generateComponentConfig: true,
+  generateScheduledHelpers: true,
+  generateAuth: true,
 };
 
 /**
@@ -156,6 +168,38 @@ export class ConvexFunctionGenerator {
     // 4. Generate HTTP routes file if HTTP actions are enabled
     if (this.options.generateHttpActions) {
       output.httpFile = this.httpActionGenerator.generateHttpFile(tables);
+    }
+
+    // 5. Generate crons.ts
+    if (this.options.generateCrons !== false) {
+      output.cronsFile = generateCrons(tables).content;
+    }
+
+    // 6. Generate convex.config.ts
+    if (this.options.generateComponentConfig !== false) {
+      output.componentConfigFile = generateComponentConfig(tables).content;
+    }
+
+    // 7. Generate auth files if users table detected
+    if (this.options.generateAuth !== false) {
+      const authResult = generateAuth(tables);
+      if (authResult.detected) {
+        output.authFile = authResult.authTs;
+        output.authConfigFile = authResult.authConfigTs;
+      }
+    }
+
+    // 8. Generate scheduled helpers per table
+    if (this.options.generateScheduledHelpers !== false) {
+      for (const table of tables) {
+        const helpers = generateScheduledHelpers(table);
+        if (helpers.content) {
+          const tableFiles = output.tables.get(table.tableName);
+          if (tableFiles) {
+            tableFiles.scheduledHelpers = helpers.content;
+          }
+        }
+      }
     }
 
     return output;
@@ -357,6 +401,32 @@ export class ConvexFunctionGenerator {
         'utf-8'
       );
     }
+
+    // Write crons.ts
+    if (output.cronsFile) {
+      await fs.writeFile(path.join(baseDir, 'crons.ts'), output.cronsFile, 'utf-8');
+    }
+
+    // Write convex.config.ts
+    if (output.componentConfigFile) {
+      await fs.writeFile(path.join(baseDir, 'convex.config.ts'), output.componentConfigFile, 'utf-8');
+    }
+
+    // Write auth files
+    if (output.authFile) {
+      await fs.writeFile(path.join(baseDir, 'auth.ts'), output.authFile, 'utf-8');
+    }
+    if (output.authConfigFile) {
+      await fs.writeFile(path.join(baseDir, 'auth.config.ts'), output.authConfigFile, 'utf-8');
+    }
+
+    // Write per-table scheduled helpers
+    for (const [tableName, files] of output.tables) {
+      if (files.scheduledHelpers) {
+        const tableDir = path.join(baseDir, tableName);
+        await fs.writeFile(path.join(tableDir, 'scheduled.ts'), files.scheduledHelpers, 'utf-8');
+      }
+    }
   }
 
   /**
@@ -444,8 +514,18 @@ export class ConvexFunctionGenerator {
     if (output.httpFile) {
       lines.push('  ├── http.ts');
     }
+    if (output.cronsFile) {
+      lines.push('  ├── crons.ts');
+    }
+    if (output.componentConfigFile) {
+      lines.push('  ├── convex.config.ts');
+    }
+    if (output.authFile) {
+      lines.push('  ├── auth.ts');
+      lines.push('  ├── auth.config.ts');
+    }
 
-    for (const [tableName] of output.tables) {
+    for (const [tableName, files] of output.tables) {
       lines.push(`  ├── ${tableName}/`);
       if (this.options.generateQueries) lines.push(`  │   ├── queries.ts`);
       if (this.options.generateMutations) lines.push(`  │   ├── mutations.ts`);
@@ -455,6 +535,8 @@ export class ConvexFunctionGenerator {
       if (this.options.generateActions) lines.push(`  │   ├── actions.ts`);
       if (this.options.generateHttpActions)
         lines.push(`  │   ├── http-actions.ts`);
+      if (files.scheduledHelpers)
+        lines.push(`  │   ├── scheduled.ts`);
       lines.push(`  │   └── index.ts`);
     }
 
@@ -516,6 +598,10 @@ export class ConvexFunctionGenerator {
       output.schema +
       output.indexFile +
       (output.httpFile || '') +
+      (output.cronsFile || '') +
+      (output.componentConfigFile || '') +
+      (output.authFile || '') +
+      (output.authConfigFile || '') +
       Array.from(output.tables.values())
         .map(
           (f) =>
@@ -524,7 +610,8 @@ export class ConvexFunctionGenerator {
             f.validators +
             f.types +
             f.actions +
-            f.httpActions
+            f.httpActions +
+            (f.scheduledHelpers || '')
         )
         .join('');
 

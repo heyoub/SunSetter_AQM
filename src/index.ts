@@ -808,7 +808,7 @@ Supports: PostgreSQL, MySQL, SQLite, SQL Server
     console.log(chalk.gray('For full help with all examples:'));
     console.log(chalk.cyan('  $ sunsetter-aqm --help-full'));
     console.log('');
-    console.log(chalk.gray('Documentation: https://github.com/heyoub/db.aqm'));
+    console.log(chalk.gray('Documentation: https://github.com/heyoub/SunSetter_AQM'));
     console.log('');
   });
 

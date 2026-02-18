@@ -53,7 +53,7 @@ export function detectAuthTable(tables: TableInfo[]): AuthAnalysis {
   for (const table of candidateTables) {
     const cols = table.columns.map(c => c.columnName.toLowerCase());
     const hasEmail = cols.some(c => EMAIL_COLUMN_PATTERNS.includes(c));
-    const hasPassword = cols.some(c => PASSWORD_COLUMN_PATTERNS.some(p => c.includes(p)));
+    const hasPassword = cols.some(c => PASSWORD_COLUMN_PATTERNS.some(p => c === p));
 
     if (hasEmail && hasPassword) {
       analysis.detected = true;

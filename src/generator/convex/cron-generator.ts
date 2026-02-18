@@ -9,7 +9,8 @@
  * https://docs.convex.dev/scheduling/cron-jobs
  */
 
-import type { TableInfo, ColumnInfo } from '../../introspector/schema-introspector.js';
+import type { TableInfo } from '../../introspector/schema-introspector.js';
+import { toCamelCase, toPascalCase } from '../../shared/types.js';
 
 // Column name patterns that indicate timestamp-based cleanup opportunities
 const CREATED_AT_PATTERNS = ['created_at', 'createdat', 'created_on', 'createdon'];
@@ -19,7 +20,10 @@ const EXPIRY_PATTERNS = [
 ];
 const SOFT_DELETE_PATTERNS = ['deleted_at', 'deletedat', 'soft_deleted_at'];
 const STATUS_PATTERNS = ['status', 'state'];
-const PENDING_STATUS_VALUES = ['pending', 'processing', 'queued', 'waiting', 'in_progress'];
+
+// Max documents per cron batch — Convex mutations are limited to 16,384 reads
+// and 8,192 writes with a 1-second timeout (docs.convex.dev/production/state/limits)
+const CRON_BATCH_SIZE = 500;
 
 interface TableCronAnalysis {
   tableName: string;
@@ -70,22 +74,18 @@ function analyzeTable(table: TableInfo): TableCronAnalysis {
   return analysis;
 }
 
-function toCamelCase(str: string): string {
-  return str.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
-}
-
-function toPascalCase(str: string): string {
-  const c = toCamelCase(str);
-  return c.charAt(0).toUpperCase() + c.slice(1);
-}
-
-function generateCleanupMutation(analysis: TableCronAnalysis): string {
+/**
+ * Generates all applicable cleanup mutations for a table.
+ * A table can have multiple patterns (e.g. both expires_at AND deleted_at),
+ * and each gets its own mutation.
+ */
+function generateCleanupMutations(analysis: TableCronAnalysis): string[] {
   const pascal = toPascalCase(analysis.tableName);
-  const camel = toCamelCase(analysis.tableName);
+  const mutations: string[] = [];
 
   if (analysis.hasExpiry && analysis.expiryField) {
     const field = toCamelCase(analysis.expiryField);
-    return `
+    mutations.push(`
 // Deletes ${analysis.tableName} documents whose ${analysis.expiryField} has passed.
 export const deleteExpired${pascal} = internalMutation({
   args: {},
@@ -94,18 +94,17 @@ export const deleteExpired${pascal} = internalMutation({
     const expired = await ctx.db
       .query("${analysis.tableName}")
       .filter((q) => q.lt(q.field("${field}"), now))
-      .collect();
+      .take(${CRON_BATCH_SIZE});
 
     await Promise.all(expired.map((doc) => ctx.db.delete(doc._id)));
     console.log(\`[cron] Deleted \${expired.length} expired ${analysis.tableName} records\`);
   },
-});`;
+});`);
   }
 
   if (analysis.hasSoftDelete && analysis.softDeleteField) {
     const field = toCamelCase(analysis.softDeleteField);
-    // Hard-delete records soft-deleted more than 30 days ago
-    return `
+    mutations.push(`
 // Permanently removes ${analysis.tableName} records that were soft-deleted over 30 days ago.
 export const purgeDeleted${pascal} = internalMutation({
   args: {},
@@ -119,18 +118,17 @@ export const purgeDeleted${pascal} = internalMutation({
           q.lt(q.field("${field}"), thirtyDaysAgo)
         )
       )
-      .collect();
+      .take(${CRON_BATCH_SIZE});
 
     await Promise.all(stale.map((doc) => ctx.db.delete(doc._id)));
     console.log(\`[cron] Purged \${stale.length} soft-deleted ${analysis.tableName} records\`);
   },
-});`;
+});`);
   }
 
   if (analysis.hasCreatedAt && analysis.createdAtField) {
     const field = toCamelCase(analysis.createdAtField);
-    // Stub: clean up old anonymous / ephemeral records (age > 90 days, no other FKs)
-    return `
+    mutations.push(`
 // Removes ${analysis.tableName} records older than 90 days.
 // Adjust the retention window to match your data retention policy.
 export const cleanupOld${pascal} = internalMutation({
@@ -140,15 +138,15 @@ export const cleanupOld${pascal} = internalMutation({
     const old = await ctx.db
       .query("${analysis.tableName}")
       .filter((q) => q.lt(q.field("${field}"), ninetyDaysAgo))
-      .collect();
+      .take(${CRON_BATCH_SIZE});
 
     await Promise.all(old.map((doc) => ctx.db.delete(doc._id)));
     console.log(\`[cron] Cleaned up \${old.length} old ${analysis.tableName} records\`);
   },
-});`;
+});`);
   }
 
-  return '';
+  return mutations;
 }
 
 function generateStuckStatusMutation(analysis: TableCronAnalysis): string {
@@ -172,7 +170,7 @@ export const resetStuck${pascal} = internalMutation({
           q.lt(q.field("_creationTime"), tenMinutesAgo)
         )
       )
-      .collect();
+      .take(${CRON_BATCH_SIZE});
 
     await Promise.all(
       stuck.map((doc) =>
@@ -192,7 +190,6 @@ interface CronSchedule {
 }
 
 function buildCronSchedule(analysis: TableCronAnalysis): CronSchedule[] {
-  const camel = toCamelCase(analysis.tableName);
   const pascal = toPascalCase(analysis.tableName);
   const schedules: CronSchedule[] = [];
 
@@ -203,14 +200,20 @@ function buildCronSchedule(analysis: TableCronAnalysis): CronSchedule[] {
       description: `Delete expired ${analysis.tableName}`,
       mutationRef: `internal.crons.deleteExpired${pascal}`,
     });
-  } else if (analysis.hasSoftDelete) {
+  }
+
+  if (analysis.hasSoftDelete) {
     schedules.push({
       method: 'crons.daily',
       args: '{ hourUTC: 3, minuteUTC: 0 }',
       description: `Purge soft-deleted ${analysis.tableName}`,
       mutationRef: `internal.crons.purgeDeleted${pascal}`,
     });
-  } else if (analysis.hasCreatedAt) {
+  }
+
+  if (analysis.hasCreatedAt && !analysis.hasExpiry && !analysis.hasSoftDelete) {
+    // Only schedule created_at cleanup if no expiry/soft-delete pattern exists,
+    // since those handle record removal more precisely
     schedules.push({
       method: 'crons.weekly',
       args: '{ dayOfWeek: "Sunday", hourUTC: 2, minuteUTC: 0 }',
@@ -257,10 +260,10 @@ export function generateCrons(tables: TableInfo[]): CronGeneratorResult {
   const allSchedules: CronSchedule[] = [];
 
   for (const analysis of analyses) {
-    const cleanupMutation = generateCleanupMutation(analysis);
+    const cleanupMutations = generateCleanupMutations(analysis);
     const stuckMutation = generateStuckStatusMutation(analysis);
 
-    if (cleanupMutation) allMutations.push(cleanupMutation);
+    allMutations.push(...cleanupMutations);
     if (stuckMutation) allMutations.push(stuckMutation);
 
     const schedules = buildCronSchedule(analysis);
@@ -276,6 +279,10 @@ export function generateCrons(tables: TableInfo[]): CronGeneratorResult {
  *
  * Auto-generated by SunSetter AQM+ based on schema analysis.
  * Review each cron job before deploying to production.
+ *
+ * Each mutation processes up to ${CRON_BATCH_SIZE} records per run to stay within
+ * Convex mutation limits (16,384 reads, 8,192 writes, 1s timeout).
+ * For tables with many records, the cron will clean up a batch each run.
  *
  * Docs: https://docs.convex.dev/scheduling/cron-jobs
  */

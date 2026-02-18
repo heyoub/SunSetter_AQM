@@ -203,8 +203,8 @@ ${chalk.bold.yellow('Troubleshooting:')}
   • Verify Convex admin key
 
   ${chalk.cyan('Get help:')}
-  • GitHub Issues: https://github.com/heyoub/db.aqm/issues
-  • Documentation: https://github.com/heyoub/db.aqm#readme
+  • GitHub Issues: https://github.com/heyoub/SunSetter_AQM/issues
+  • Documentation: https://github.com/heyoub/SunSetter_AQM#readme
 `;
 
 // ============================================================================

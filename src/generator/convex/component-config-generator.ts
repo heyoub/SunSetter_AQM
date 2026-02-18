@@ -71,17 +71,6 @@ function analyzeForComponents(tables: TableInfo[]): ComponentAnalysis {
   return analysis;
 }
 
-function buildInstallComment(analysis: ComponentAnalysis): string {
-  const pkgs = [
-    '@convex-dev/migrations',
-    analysis.needsRateLimiter ? '@convex-dev/rate-limiter' : null,
-    analysis.needsAggregate ? '@convex-dev/aggregate' : null,
-  ].filter(Boolean);
-
-  return `// Install components:
-// npm i ${pkgs.join(' ')}`;
-}
-
 export interface ComponentConfigResult {
   content: string;
   components: string[];
@@ -97,19 +86,19 @@ export function generateComponentConfig(tables: TableInfo[]): ComponentConfigRes
 
   const imports: string[] = [
     'import { defineApp } from "convex/server";',
-    'import migrations from "@convex-dev/migrations/convex.config";',
+    'import migrations from "@convex-dev/migrations/convex.config.js";',
   ];
   const uses: string[] = ['app.use(migrations);'];
   const components: string[] = ['migrations'];
 
   if (analysis.needsRateLimiter) {
-    imports.push('import rateLimiter from "@convex-dev/rate-limiter/convex.config";');
+    imports.push('import rateLimiter from "@convex-dev/rate-limiter/convex.config.js";');
     uses.push('app.use(rateLimiter);');
     components.push('rate-limiter');
   }
 
   if (analysis.needsAggregate) {
-    imports.push('import aggregate from "@convex-dev/aggregate/convex.config";');
+    imports.push('import aggregate from "@convex-dev/aggregate/convex.config.js";');
     // One aggregate instance per analytics table
     for (const tableName of analysis.analyticsTables) {
       uses.push(`app.use(aggregate, { name: "aggregate_${tableName}" });`);

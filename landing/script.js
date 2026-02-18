@@ -13,6 +13,9 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 // ─────────────────────────────────────────────────────────────────────────────
 
 const canvas = document.getElementById('bg-canvas');
+if (!canvas) {
+  console.warn('bg-canvas element not found — 3D scene disabled');
+}
 const W = () => window.innerWidth;
 const H = () => window.innerHeight;
 
@@ -199,7 +202,8 @@ window.addEventListener('resize', () => {
 // ── Scroll tracking ──
 let scrollProgress = 0;
 window.addEventListener('scroll', () => {
-  scrollProgress = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+  const scrollable = document.body.scrollHeight - window.innerHeight;
+  scrollProgress = scrollable > 0 ? Math.min(window.scrollY / scrollable, 1) : 0;
 });
 
 // ── Animation loop ──
@@ -247,9 +251,18 @@ function animate() {
       const r = 25 + Math.random() * 20;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.random() * Math.PI;
-      pos[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
-      pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      pos[i * 3 + 2] = r * Math.cos(phi);
+      const nx = r * Math.sin(phi) * Math.cos(theta);
+      const ny = r * Math.sin(phi) * Math.sin(theta);
+      const nz = r * Math.cos(phi);
+      pos[i * 3]     = nx;
+      pos[i * 3 + 1] = ny;
+      pos[i * 3 + 2] = nz;
+
+      // Recalculate velocity toward center for new position
+      const speed = 0.003 + Math.random() * 0.005;
+      particleVelocities[i].dx = -nx * speed * 0.01;
+      particleVelocities[i].dy = -ny * speed * 0.01;
+      particleVelocities[i].dz = -nz * speed * 0.01;
     }
   }
   particleGeo.attributes.position.needsUpdate = true;
@@ -346,14 +359,10 @@ const cursor = document.getElementById('cursor');
 const trail  = document.getElementById('cursor-trail');
 
 if (cursor && trail) {
-  let cx = 0, cy = 0;
   document.addEventListener('mousemove', (e) => {
-    cx = e.clientX; cy = e.clientY;
-    cursor.style.left = cx + 'px';
-    cursor.style.top  = cy + 'px';
-  });
-  // Trail follows with CSS transition — set via style for smooth lag effect
-  document.addEventListener('mousemove', (e) => {
+    cursor.style.left = e.clientX + 'px';
+    cursor.style.top  = e.clientY + 'px';
+    // Trail follows with CSS transition delay for smooth lag effect
     setTimeout(() => {
       trail.style.left = e.clientX + 'px';
       trail.style.top  = e.clientY + 'px';
@@ -370,13 +379,21 @@ const installCmd = document.getElementById('install-cmd');
 
 if (copyBtn && installCmd) {
   copyBtn.addEventListener('click', async () => {
+    const text = installCmd.textContent.trim();
     try {
-      await navigator.clipboard.writeText(installCmd.textContent.trim());
-      copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`;
-      setTimeout(() => {
-        copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
-      }, 1500);
-    } catch {}
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Clipboard API unavailable (e.g. non-HTTPS) — fall back to selection
+      const range = document.createRange();
+      range.selectNodeContents(installCmd);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`;
+    setTimeout(() => {
+      copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+    }, 1500);
   });
 }
 

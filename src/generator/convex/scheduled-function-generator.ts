@@ -12,19 +12,10 @@
  */
 
 import type { TableInfo } from '../../introspector/schema-introspector.js';
+import { toCamelCase, toPascalCase } from '../../shared/types.js';
 
 const EXPIRY_COLUMN_PATTERNS = ['expires_at', 'expiry_at', 'expiration_at', 'valid_until'];
 const STATUS_COLUMN_PATTERNS = ['status', 'state'];
-const PROCESSING_STATUS_VALUES = ['pending', 'queued'];
-
-function toCamelCase(str: string): string {
-  return str.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
-}
-
-function toPascalCase(str: string): string {
-  const c = toCamelCase(str);
-  return c.charAt(0).toUpperCase() + c.slice(1);
-}
 
 interface ScheduledHelperAnalysis {
   hasExpiry: boolean;

@@ -697,8 +697,12 @@ export class ConvexTypeMapper {
       json: 'any',
       jsonb: 'any',
 
-      // Binary
-      bytea: 'ArrayBuffer',
+      // Binary → Convex file storage reference
+      bytea: 'Id<"_storage">',
+      blob: 'Id<"_storage">',
+      binary: 'Id<"_storage">',
+      varbinary: 'Id<"_storage">',
+      image: 'Id<"_storage">',
     };
 
     return mapping[pgType] || 'any';

@@ -171,17 +171,17 @@ export class ConvexFunctionGenerator {
     }
 
     // 5. Generate crons.ts
-    if ((this.options as any).generateCrons !== false) {
+    if (this.options.generateCrons !== false) {
       output.cronsFile = generateCrons(tables).content;
     }
 
     // 6. Generate convex.config.ts
-    if ((this.options as any).generateComponentConfig !== false) {
+    if (this.options.generateComponentConfig !== false) {
       output.componentConfigFile = generateComponentConfig(tables).content;
     }
 
     // 7. Generate auth files if users table detected
-    if ((this.options as any).generateAuth !== false) {
+    if (this.options.generateAuth !== false) {
       const authResult = generateAuth(tables);
       if (authResult.detected) {
         output.authFile = authResult.authTs;
@@ -190,7 +190,7 @@ export class ConvexFunctionGenerator {
     }
 
     // 8. Generate scheduled helpers per table
-    if ((this.options as any).generateScheduledHelpers !== false) {
+    if (this.options.generateScheduledHelpers !== false) {
       for (const table of tables) {
         const helpers = generateScheduledHelpers(table);
         if (helpers.content) {
@@ -514,8 +514,18 @@ export class ConvexFunctionGenerator {
     if (output.httpFile) {
       lines.push('  ├── http.ts');
     }
+    if (output.cronsFile) {
+      lines.push('  ├── crons.ts');
+    }
+    if (output.componentConfigFile) {
+      lines.push('  ├── convex.config.ts');
+    }
+    if (output.authFile) {
+      lines.push('  ├── auth.ts');
+      lines.push('  ├── auth.config.ts');
+    }
 
-    for (const [tableName] of output.tables) {
+    for (const [tableName, files] of output.tables) {
       lines.push(`  ├── ${tableName}/`);
       if (this.options.generateQueries) lines.push(`  │   ├── queries.ts`);
       if (this.options.generateMutations) lines.push(`  │   ├── mutations.ts`);
@@ -525,6 +535,8 @@ export class ConvexFunctionGenerator {
       if (this.options.generateActions) lines.push(`  │   ├── actions.ts`);
       if (this.options.generateHttpActions)
         lines.push(`  │   ├── http-actions.ts`);
+      if (files.scheduledHelpers)
+        lines.push(`  │   ├── scheduled.ts`);
       lines.push(`  │   └── index.ts`);
     }
 
@@ -586,6 +598,10 @@ export class ConvexFunctionGenerator {
       output.schema +
       output.indexFile +
       (output.httpFile || '') +
+      (output.cronsFile || '') +
+      (output.componentConfigFile || '') +
+      (output.authFile || '') +
+      (output.authConfigFile || '') +
       Array.from(output.tables.values())
         .map(
           (f) =>
@@ -594,7 +610,8 @@ export class ConvexFunctionGenerator {
             f.validators +
             f.types +
             f.actions +
-            f.httpActions
+            f.httpActions +
+            (f.scheduledHelpers || '')
         )
         .join('');
 

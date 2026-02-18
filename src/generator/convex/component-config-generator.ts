@@ -42,7 +42,7 @@ function analyzeForComponents(tables: TableInfo[]): ComponentAnalysis {
   const inboundFKCount: Record<string, number> = {};
   for (const table of tables) {
     for (const fk of table.foreignKeys ?? []) {
-      const ref = fk.referencedTableName;
+      const ref = fk.referencedTable;
       inboundFKCount[ref] = (inboundFKCount[ref] ?? 0) + 1;
     }
   }

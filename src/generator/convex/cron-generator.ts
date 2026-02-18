@@ -191,7 +191,7 @@ interface CronSchedule {
   mutationRef: string;
 }
 
-function buildCronSchedule(analysis: TableCronAnalysis, mutations: string[]): CronSchedule[] {
+function buildCronSchedule(analysis: TableCronAnalysis): CronSchedule[] {
   const camel = toCamelCase(analysis.tableName);
   const pascal = toPascalCase(analysis.tableName);
   const schedules: CronSchedule[] = [];
@@ -263,7 +263,7 @@ export function generateCrons(tables: TableInfo[]): CronGeneratorResult {
     if (cleanupMutation) allMutations.push(cleanupMutation);
     if (stuckMutation) allMutations.push(stuckMutation);
 
-    const schedules = buildCronSchedule(analysis, allMutations);
+    const schedules = buildCronSchedule(analysis);
     allSchedules.push(...schedules);
   }
 

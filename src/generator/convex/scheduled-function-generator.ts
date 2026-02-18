@@ -81,7 +81,7 @@ export const scheduleExpiry${pascal} = internalMutation({
       await ctx.db.delete(args.id);
       return;
     }
-    await ctx.scheduler.runAfter(delay, internal.${tableName}.deleteExpired${pascal}, {
+    await ctx.scheduler.runAfter(delay, internal.${tableName}.scheduled.deleteExpired${pascal}, {
       id: args.id,
     });
   },
@@ -132,7 +132,7 @@ export const scheduleRetry${pascal} = internalMutation({
     }
 
     const delay = backoffMs * attempt; // linear backoff; swap for exponential if needed
-    await ctx.scheduler.runAfter(delay, internal.${tableName}.process${pascal}, {
+    await ctx.scheduler.runAfter(delay, internal.${tableName}.scheduled.process${pascal}, {
       id: args.id,
       attempt,
       maxAttempts,
@@ -164,7 +164,7 @@ export const process${pascal} = internalMutation({
     } catch (err) {
       // Processing failed — schedule retry
       await ctx.db.patch(args.id, { ${statusFieldCamel}: "pending" });
-      await ctx.scheduler.runAfter(0, internal.${tableName}.scheduleRetry${pascal}, {
+      await ctx.scheduler.runAfter(0, internal.${tableName}.scheduled.scheduleRetry${pascal}, {
         id: args.id,
         attempt: args.attempt + 1,
         maxAttempts: args.maxAttempts,

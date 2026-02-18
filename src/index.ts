@@ -45,11 +45,7 @@ if (args.includes('--mcp')) {
   import('./mcp/server.js').then(({ startMcpServer }) => {
     startMcpServer().catch(console.error);
   });
-} else if (
-  args.includes('--tui') ||
-  args.includes('-i') ||
-  args.includes('--interactive')
-) {
+} else if (args.includes('-i') || args.includes('--interactive')) {
   // Launch TUI mode
   import('./tui/app.js').then(({ launchTUI }) => {
     launchTUI().catch(console.error);
@@ -72,7 +68,7 @@ Supports: PostgreSQL, MySQL, SQLite, SQL Server
 `)
     )
     .version(VERSION, '-v, --version', 'Display version number')
-    .option('--tui, -i, --interactive', 'Launch interactive TUI mode')
+    .option('-i, --interactive', 'Launch interactive TUI mode')
     .option('--mcp', 'Start MCP server for Claude integration')
     .option('--json', 'Output results as JSON')
     .option('--no-color', 'Disable colored output')
@@ -786,7 +782,7 @@ Supports: PostgreSQL, MySQL, SQLite, SQL Server
     console.log(chalk.bold.yellow('Quick Start:'));
     console.log('');
     console.log(chalk.cyan('  # Interactive mode (recommended):'));
-    console.log('  $ sunsetter-aqm --tui');
+    console.log('  $ sunsetter-aqm -i');
     console.log('');
     console.log(chalk.cyan('  # Authenticate with Convex:'));
     console.log('  $ sunsetter-aqm auth');
@@ -808,7 +804,9 @@ Supports: PostgreSQL, MySQL, SQLite, SQL Server
     console.log(chalk.gray('For full help with all examples:'));
     console.log(chalk.cyan('  $ sunsetter-aqm --help-full'));
     console.log('');
-    console.log(chalk.gray('Documentation: https://github.com/heyoub/SunSetter_AQM'));
+    console.log(
+      chalk.gray('Documentation: https://github.com/heyoub/SunSetter_AQM')
+    );
     console.log('');
   });
 

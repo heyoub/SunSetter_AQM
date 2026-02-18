@@ -26,7 +26,6 @@
     "sunsetter-aqm": "dist/index.js",
     "sunsetter": "dist/index.js",
     "aqm": "dist/index.js",
-    "db.aqm": "dist/index.js",
     "sunsetter-mcp": "dist/mcp/server.js"
   },
   "type": "module",
@@ -50,10 +49,10 @@
     "dev:tui": "ts-node --esm src/tui/app.ts",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
-    "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
-    "format": "prettier --write src/**/*.ts",
-    "format:check": "prettier --check src/**/*.ts",
+    "lint": "eslint \"src/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
     "prepare": "husky install"
   },
   "mcpServers": {
@@ -99,8 +98,6 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.1",
-    "@types/blessed": "^0.1.27",
-    "@types/figlet": "^1.7.0",
     "ascii-art-font": "^1.0.2",
     "better-sqlite3": "^12.5.0",
     "blessed": "^0.1.81",
@@ -128,6 +125,7 @@
     "ora": "^7.0.1",
     "pg": "^8.11.3",
     "terminal-kit": "^3.1.2",
+    "tslib": "^2.6.2",
     "uuid": "^9.0.1",
     "winston": "^3.11.0",
     "winston-daily-rotate-file": "^5.0.0"
@@ -135,6 +133,8 @@
   "devDependencies": {
     "@types/benchmark": "^2.1.5",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/blessed": "^0.1.27",
+    "@types/figlet": "^1.7.0",
     "@types/cli-progress": "^3.11.5",
     "@types/inquirer": "^9.0.7",
     "@types/jest": "^29.5.8",

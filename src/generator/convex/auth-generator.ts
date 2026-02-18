@@ -16,9 +16,25 @@
 import type { TableInfo } from '../../introspector/schema-introspector.js';
 
 const EMAIL_COLUMN_PATTERNS = ['email', 'email_address', 'user_email'];
-const PASSWORD_COLUMN_PATTERNS = ['password', 'password_hash', 'hashed_password', 'passwd', 'pwd'];
-const USERNAME_COLUMN_PATTERNS = ['username', 'user_name', 'handle', 'screen_name'];
-const NAME_COLUMN_PATTERNS = ['name', 'full_name', 'display_name', 'first_name'];
+const PASSWORD_COLUMN_PATTERNS = [
+  'password',
+  'password_hash',
+  'hashed_password',
+  'passwd',
+  'pwd',
+];
+const USERNAME_COLUMN_PATTERNS = [
+  'username',
+  'user_name',
+  'handle',
+  'screen_name',
+];
+const NAME_COLUMN_PATTERNS = [
+  'name',
+  'full_name',
+  'display_name',
+  'first_name',
+];
 
 interface AuthAnalysis {
   detected: boolean;
@@ -44,16 +60,24 @@ export function detectAuthTable(tables: TableInfo[]): AuthAnalysis {
   };
 
   // Look for a users/accounts/members table
-  const candidateTables = tables.filter(t =>
-    ['users', 'user', 'accounts', 'account', 'members', 'member', 'profiles'].includes(
-      t.tableName.toLowerCase()
-    )
+  const candidateTables = tables.filter((t) =>
+    [
+      'users',
+      'user',
+      'accounts',
+      'account',
+      'members',
+      'member',
+      'profiles',
+    ].includes(t.tableName.toLowerCase())
   );
 
   for (const table of candidateTables) {
-    const cols = table.columns.map(c => c.columnName.toLowerCase());
-    const hasEmail = cols.some(c => EMAIL_COLUMN_PATTERNS.includes(c));
-    const hasPassword = cols.some(c => PASSWORD_COLUMN_PATTERNS.some(p => c === p));
+    const cols = table.columns.map((c) => c.columnName.toLowerCase());
+    const hasEmail = cols.some((c) => EMAIL_COLUMN_PATTERNS.includes(c));
+    const hasPassword = cols.some((c) =>
+      PASSWORD_COLUMN_PATTERNS.some((p) => c === p)
+    );
 
     if (hasEmail && hasPassword) {
       analysis.detected = true;
@@ -61,13 +85,13 @@ export function detectAuthTable(tables: TableInfo[]): AuthAnalysis {
       analysis.hasEmail = true;
       analysis.hasPassword = true;
 
-      const emailCol = table.columns.find(c =>
+      const emailCol = table.columns.find((c) =>
         EMAIL_COLUMN_PATTERNS.includes(c.columnName.toLowerCase())
       );
-      const nameCol = table.columns.find(c =>
-        NAME_COLUMN_PATTERNS.some(p => c.columnName.toLowerCase() === p)
+      const nameCol = table.columns.find((c) =>
+        NAME_COLUMN_PATTERNS.some((p) => c.columnName.toLowerCase() === p)
       );
-      const usernameCol = table.columns.find(c =>
+      const usernameCol = table.columns.find((c) =>
         USERNAME_COLUMN_PATTERNS.includes(c.columnName.toLowerCase())
       );
 

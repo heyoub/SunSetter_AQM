@@ -20,7 +20,11 @@ const WRITE_HEAVY_FK_THRESHOLD = 3;
 
 // Tables that look like analytics / event logs (no FKs, timestamp-heavy)
 const ANALYTICS_TIMESTAMP_PATTERNS = [
-  'created_at', 'event_at', 'timestamp', 'occurred_at', 'logged_at',
+  'created_at',
+  'event_at',
+  'timestamp',
+  'occurred_at',
+  'logged_at',
 ];
 
 interface ComponentAnalysis {
@@ -48,7 +52,7 @@ function analyzeForComponents(tables: TableInfo[]): ComponentAnalysis {
   }
 
   for (const table of tables) {
-    const colNames = table.columns.map(c => c.columnName.toLowerCase());
+    const colNames = table.columns.map((c) => c.columnName.toLowerCase());
 
     // Write-heavy: many other tables FK into this one
     const inbound = inboundFKCount[table.tableName] ?? 0;
@@ -59,8 +63,8 @@ function analyzeForComponents(tables: TableInfo[]): ComponentAnalysis {
 
     // Analytics pattern: no FKs + timestamp column + many rows implied
     const hasNoFKs = (table.foreignKeys ?? []).length === 0;
-    const hasTimestamp = colNames.some(n =>
-      ANALYTICS_TIMESTAMP_PATTERNS.some(p => n === p || n.endsWith(`_${p}`))
+    const hasTimestamp = colNames.some((n) =>
+      ANALYTICS_TIMESTAMP_PATTERNS.some((p) => n === p || n.endsWith(`_${p}`))
     );
     if (hasNoFKs && hasTimestamp && table.columns.length >= 4) {
       analysis.needsAggregate = true;
@@ -81,7 +85,9 @@ export interface ComponentConfigResult {
  * Generates a convex/convex.config.ts that registers detected components.
  * The migrations component is always included.
  */
-export function generateComponentConfig(tables: TableInfo[]): ComponentConfigResult {
+export function generateComponentConfig(
+  tables: TableInfo[]
+): ComponentConfigResult {
   const analysis = analyzeForComponents(tables);
 
   const imports: string[] = [
@@ -92,13 +98,17 @@ export function generateComponentConfig(tables: TableInfo[]): ComponentConfigRes
   const components: string[] = ['migrations'];
 
   if (analysis.needsRateLimiter) {
-    imports.push('import rateLimiter from "@convex-dev/rate-limiter/convex.config.js";');
+    imports.push(
+      'import rateLimiter from "@convex-dev/rate-limiter/convex.config.js";'
+    );
     uses.push('app.use(rateLimiter);');
     components.push('rate-limiter');
   }
 
   if (analysis.needsAggregate) {
-    imports.push('import aggregate from "@convex-dev/aggregate/convex.config.js";');
+    imports.push(
+      'import aggregate from "@convex-dev/aggregate/convex.config.js";'
+    );
     // One aggregate instance per analytics table
     for (const tableName of analysis.analyticsTables) {
       uses.push(`app.use(aggregate, { name: "aggregate_${tableName}" });`);

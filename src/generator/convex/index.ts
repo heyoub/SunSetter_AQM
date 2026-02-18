@@ -404,27 +404,47 @@ export class ConvexFunctionGenerator {
 
     // Write crons.ts
     if (output.cronsFile) {
-      await fs.writeFile(path.join(baseDir, 'crons.ts'), output.cronsFile, 'utf-8');
+      await fs.writeFile(
+        path.join(baseDir, 'crons.ts'),
+        output.cronsFile,
+        'utf-8'
+      );
     }
 
     // Write convex.config.ts
     if (output.componentConfigFile) {
-      await fs.writeFile(path.join(baseDir, 'convex.config.ts'), output.componentConfigFile, 'utf-8');
+      await fs.writeFile(
+        path.join(baseDir, 'convex.config.ts'),
+        output.componentConfigFile,
+        'utf-8'
+      );
     }
 
     // Write auth files
     if (output.authFile) {
-      await fs.writeFile(path.join(baseDir, 'auth.ts'), output.authFile, 'utf-8');
+      await fs.writeFile(
+        path.join(baseDir, 'auth.ts'),
+        output.authFile,
+        'utf-8'
+      );
     }
     if (output.authConfigFile) {
-      await fs.writeFile(path.join(baseDir, 'auth.config.ts'), output.authConfigFile, 'utf-8');
+      await fs.writeFile(
+        path.join(baseDir, 'auth.config.ts'),
+        output.authConfigFile,
+        'utf-8'
+      );
     }
 
     // Write per-table scheduled helpers
     for (const [tableName, files] of output.tables) {
       if (files.scheduledHelpers) {
         const tableDir = path.join(baseDir, tableName);
-        await fs.writeFile(path.join(tableDir, 'scheduled.ts'), files.scheduledHelpers, 'utf-8');
+        await fs.writeFile(
+          path.join(tableDir, 'scheduled.ts'),
+          files.scheduledHelpers,
+          'utf-8'
+        );
       }
     }
   }
@@ -535,8 +555,7 @@ export class ConvexFunctionGenerator {
       if (this.options.generateActions) lines.push(`  │   ├── actions.ts`);
       if (this.options.generateHttpActions)
         lines.push(`  │   ├── http-actions.ts`);
-      if (files.scheduledHelpers)
-        lines.push(`  │   ├── scheduled.ts`);
+      if (files.scheduledHelpers) lines.push(`  │   ├── scheduled.ts`);
       lines.push(`  │   └── index.ts`);
     }
 

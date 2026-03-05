@@ -53,7 +53,7 @@
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "prepare": "husky install"
+    "prepare": "[ -d .git ] && husky install || true"
   },
   "mcpServers": {
     "sunsetter-aqm": {

@@ -5,13 +5,24 @@ module.exports = (request, options) => {
   const rootDir = options?.rootDir || process.cwd();
   const defaultResolver = options?.defaultResolver;
 
-  const isBaseConvexImport = request === './base-convex-generator.js';
+  const normalizedBasedir =
+    typeof basedir === 'string'
+      ? path.relative(rootDir, basedir).split(path.sep).join('/')
+      : '';
+  const isBaseConvexImport =
+    request === './base-convex-generator.js' ||
+    request === './base-convex-generator';
   const isConvexGeneratorDir =
-    typeof basedir === 'string' &&
-    basedir === path.join(rootDir, 'src', 'generator', 'convex');
+    normalizedBasedir === 'src/generator/convex';
 
   if (isBaseConvexImport && isConvexGeneratorDir) {
-    return path.join(rootDir, 'src', 'generator', 'convex', 'base-convex-generator.ts');
+    return path.join(
+      rootDir,
+      'src',
+      'generator',
+      'convex',
+      'base-convex-generator.ts'
+    );
   }
 
   if (typeof defaultResolver === 'function') {

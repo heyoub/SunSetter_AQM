@@ -43,11 +43,11 @@ jobs:
     - name: Run linter
       run: npm run lint
       
-    - name: Run tests
-      run: npm test
-      
     - name: Build project
       run: npm run build
+
+    - name: Run tests
+      run: npm test
       
     - name: Test CLI (help)
       run: node dist/index.js --help

@@ -171,4 +171,57 @@ describe('ConvexFunctionGenerator', () => {
     );
     expect(types).toContain('embedding?: number[];');
   });
+
+  it('emits lint-friendly scheduled and mutation helpers', async () => {
+    const table: TableInfo = {
+      tableName: 'jobs',
+      schemaName: 'public',
+      tableType: 'BASE TABLE',
+      columns: [
+        createColumn('email', 'text', { ordinalPosition: 1 }),
+        createColumn('status', 'text', { ordinalPosition: 2 }),
+        createColumn('expires_at', 'timestamp without time zone', {
+          ordinalPosition: 3,
+          isNullable: true,
+        }),
+      ],
+      primaryKeys: [],
+      foreignKeys: [],
+      indexes: [
+        {
+          indexName: 'jobs_email_key',
+          columnName: 'email',
+          columns: [
+            {
+              columnName: 'email',
+              ordinalPosition: 1,
+              sortOrder: 'asc',
+              nullsPosition: 'last',
+              isExpression: false,
+            },
+          ],
+          isUnique: true,
+          ordinalPosition: 1,
+          isExpression: false,
+          indexMethod: 'btree',
+          isPartial: false,
+        },
+      ],
+      checkConstraints: [],
+      description: null,
+    };
+
+    const generator = await createGenerator();
+    const output = generator.generate([table]);
+    const mutations = output.tables.get('jobs')?.mutations ?? '';
+    const scheduledHelpers = output.tables.get('jobs')?.scheduledHelpers ?? '';
+
+    expect(mutations).not.toContain('console.log(`Processed ${i + CHUNK_SIZE}');
+    expect(mutations).not.toContain('console.log(`Deleted ${i + CHUNK_SIZE}');
+    expect(mutations).not.toContain(
+      'if (existing) {\n      await ctx.db.patch(existing._id, args);\n      return existing._id;\n    } else {'
+    );
+    expect(mutations).toContain('return await ctx.db.insert("jobs", args);');
+    expect(scheduledHelpers).toContain('catch (_err)');
+  });
 });

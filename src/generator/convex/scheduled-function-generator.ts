@@ -163,7 +163,7 @@ export const process${pascal} = internalMutation({
       // await someExternalApi(doc);
 
       await ctx.db.patch(args.id, { ${statusFieldCamel}: "done" });
-    } catch (err) {
+    } catch (_err) {
       // Processing failed — schedule retry
       await ctx.db.patch(args.id, { ${statusFieldCamel}: "pending" });
       await ctx.scheduler.runAfter(0, internal.${tableName}.scheduled.scheduleRetry${pascal}, {

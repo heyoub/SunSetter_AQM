@@ -343,10 +343,6 @@ ${itemValidator},
         ids.push(id);
       }
 
-      // Log progress for large batches
-      if (args.items.length > 1000 && (i + CHUNK_SIZE) % 1000 === 0) {
-        console.log(\`Processed \${i + CHUNK_SIZE} / \${args.items.length} items\`);
-      }
     }
 
     return ids;
@@ -405,10 +401,6 @@ export const batchRemove = mutation({
         await ${deleteCall};
       }
 
-      // Log progress for large batches
-      if (args.ids.length > 1000 && (i + CHUNK_SIZE) % 1000 === 0) {
-        console.log(\`Deleted \${i + CHUNK_SIZE} / \${args.ids.length} items\`);
-      }
     }
 
     return args.ids;
@@ -482,9 +474,9 @@ ${argsDefinition},
     if (existing) {
       await ${patchCall};
       return existing._id;
-    } else {
-      return await ctx.db.insert("${tableName}", args);
     }
+
+    return await ctx.db.insert("${tableName}", args);
   },
 });`;
   }

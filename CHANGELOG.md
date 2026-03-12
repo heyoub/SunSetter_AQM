@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.2] - 2026-03-12
+
+### Fixed
+
+- Deduped overlapping columns and foreign keys inside CRUD generators
+- Prevented duplicate fields in generated mutations, validators, queries, and types
+- Fixed `.gitignore` patterns that were hiding real source files under `src/`
+- Adjusted CI to build before tests so generated artifact tests run against a built package
+
 ## [1.6.1] - 2026-03-12
 
 ### Fixed

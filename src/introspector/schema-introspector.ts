@@ -838,7 +838,7 @@ export class SchemaIntrospector {
         d.domain_schema,
         d.data_type,
         d.domain_default,
-        d.is_nullable,
+        CASE WHEN t.typnotnull THEN 'NO' ELSE 'YES' END as is_nullable,
         obj_description(t.oid) as domain_comment,
         ARRAY(
           SELECT pg_get_constraintdef(con.oid)

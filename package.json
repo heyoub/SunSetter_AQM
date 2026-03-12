@@ -41,7 +41,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/heyoub/SunSetter_AQM.git"
+    "url": "git+https://github.com/heyoub/SunSetter_AQM.git"
   },
   "homepage": "https://sunsetter-aqm.heyoub.dev",
   "bugs": {

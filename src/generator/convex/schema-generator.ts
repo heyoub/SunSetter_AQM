@@ -9,7 +9,11 @@ import type {
   TableInfo,
   ColumnInfo,
 } from '../../introspector/schema-introspector.js';
-import { toCamelCase, toPascalCase, escapeFieldName } from '../../utils/naming.js';
+import {
+  toCamelCase,
+  toPascalCase,
+  escapeFieldName,
+} from '../../utils/naming.js';
 import { BaseConvexGenerator } from './base-convex-generator.js';
 import type { BaseGeneratorOptions } from './base-convex-generator.js';
 
@@ -466,5 +470,4 @@ ${fields}
     }
     return count;
   }
-
 }

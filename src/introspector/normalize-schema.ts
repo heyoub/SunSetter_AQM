@@ -10,13 +10,18 @@ function mergeColumns(existing: ColumnInfo, incoming: ColumnInfo): ColumnInfo {
   return {
     ...existing,
     dataType:
-      existing.dataType === 'USER-DEFINED' ? incoming.dataType : existing.dataType,
+      existing.dataType === 'USER-DEFINED'
+        ? incoming.dataType
+        : existing.dataType,
     columnDefault: existing.columnDefault ?? incoming.columnDefault,
     characterMaximumLength:
       existing.characterMaximumLength ?? incoming.characterMaximumLength,
     numericPrecision: existing.numericPrecision ?? incoming.numericPrecision,
     numericScale: existing.numericScale ?? incoming.numericScale,
-    ordinalPosition: Math.min(existing.ordinalPosition, incoming.ordinalPosition),
+    ordinalPosition: Math.min(
+      existing.ordinalPosition,
+      incoming.ordinalPosition
+    ),
     isIdentity: existing.isIdentity || incoming.isIdentity,
     isPrimaryKey: existing.isPrimaryKey || incoming.isPrimaryKey,
     isForeignKey: existing.isForeignKey || incoming.isForeignKey,

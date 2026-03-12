@@ -16,7 +16,11 @@
 
 import chalk from 'chalk';
 import cliProgress from 'cli-progress';
-import { formatBytes, formatDurationCompact as formatDuration, formatNumber } from '../utils/formatting.js';
+import {
+  formatBytes,
+  formatDurationCompact as formatDuration,
+  formatNumber,
+} from '../utils/formatting.js';
 
 // ============================================================================
 // Types

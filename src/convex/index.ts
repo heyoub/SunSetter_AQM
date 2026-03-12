@@ -14,4 +14,8 @@ export { TypeMapper as ConvexTypeMapper } from '../mapper/type-mapper.js';
 export { RelationshipAnalyzer } from './relationship-analyzer.js';
 export { ConvexSchemaGenerator } from './convex-schema-generator.js';
 export { EdgeCaseHandler } from './edge-case-handler.js';
-export { convertColumnCheckConstraints, applyCheckConstraintValidators, type CheckConstraintConversion } from './check-constraint-converter.js';
+export {
+  convertColumnCheckConstraints,
+  applyCheckConstraintValidators,
+  type CheckConstraintConversion,
+} from './check-constraint-converter.js';

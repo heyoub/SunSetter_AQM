@@ -141,7 +141,9 @@ export class SQLiteAdapter extends BaseAdapter {
 
     const filename = this.sqliteConfig.filename || this.config.database;
     if (!filename) {
-      throw new ConnectionError('SQLite adapter requires a filename or database path');
+      throw new ConnectionError(
+        'SQLite adapter requires a filename or database path'
+      );
     }
 
     try {
@@ -165,7 +167,9 @@ export class SQLiteAdapter extends BaseAdapter {
       this.connected = true;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new ConnectionError(`Failed to connect to SQLite database: ${message}`);
+      throw new ConnectionError(
+        `Failed to connect to SQLite database: ${message}`
+      );
     }
   }
 

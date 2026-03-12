@@ -794,5 +794,4 @@ ${routes}
 export default http;
 `;
   }
-
 }

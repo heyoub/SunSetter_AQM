@@ -54,7 +54,9 @@ export function createPreflightCommand(): Command {
         // Introspect schema
         reporter.startSpinner('Introspecting schema...');
         const introspector = new SchemaIntrospector(adapter);
-        const schema = await introspector.introspectSchema(adapter.getDefaultSchema());
+        const schema = await introspector.introspectSchema(
+          adapter.getDefaultSchema()
+        );
         let tables = schema.tables;
 
         // Apply filters

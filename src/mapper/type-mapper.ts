@@ -300,187 +300,909 @@ const POSTGRES_TO_CONVEX_MAP: Record<string, string> = {
 // ============================================================================
 
 const POSTGRESQL_TRANSFORM: Record<string, ConvexTypeMapping> = {
-  'character varying': { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  varchar: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  character: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  char: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  text: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  citext: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  uuid: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  name: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  smallint: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  integer: { validator: 'v.number()', typescript: 'number', needsTransform: false },
+  'character varying': {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  varchar: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  character: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  char: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  text: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  citext: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  uuid: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  name: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  smallint: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  integer: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
   int: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  int4: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  serial: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  smallserial: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  bigint: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'BigInt' },
-  int8: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'BigInt' },
-  bigserial: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'BigInt' },
-  decimal: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'parseFloat' },
-  numeric: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'parseFloat' },
-  real: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  float4: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  'double precision': { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  float8: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  money: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'parseMoney' },
-  boolean: { validator: 'v.boolean()', typescript: 'boolean', needsTransform: false },
-  bool: { validator: 'v.boolean()', typescript: 'boolean', needsTransform: false },
-  timestamp: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  'timestamp without time zone': { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  'timestamp with time zone': { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  timestamptz: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  date: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  time: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  'time without time zone': { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  'time with time zone': { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  timetz: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  interval: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'intervalToString' },
+  int4: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  serial: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  smallserial: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  bigint: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'BigInt',
+  },
+  int8: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'BigInt',
+  },
+  bigserial: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'BigInt',
+  },
+  decimal: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'parseFloat',
+  },
+  numeric: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'parseFloat',
+  },
+  real: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  float4: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  'double precision': {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  float8: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  money: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'parseMoney',
+  },
+  boolean: {
+    validator: 'v.boolean()',
+    typescript: 'boolean',
+    needsTransform: false,
+  },
+  bool: {
+    validator: 'v.boolean()',
+    typescript: 'boolean',
+    needsTransform: false,
+  },
+  timestamp: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  'timestamp without time zone': {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  'timestamp with time zone': {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  timestamptz: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  date: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  time: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  'time without time zone': {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  'time with time zone': {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  timetz: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  interval: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'intervalToString',
+  },
   json: { validator: 'v.any()', typescript: 'any', needsTransform: false },
   jsonb: { validator: 'v.any()', typescript: 'any', needsTransform: false },
-  vector: { validator: 'v.array(v.float64())', typescript: 'number[]', needsTransform: true, transformFn: 'parseVector' },
-  bytea: { validator: 'v.bytes()', typescript: 'ArrayBuffer', needsTransform: true, transformFn: 'toBytes' },
-  inet: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  cidr: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  macaddr: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  macaddr8: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  point: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'JSON.stringify' },
-  line: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'JSON.stringify' },
-  lseg: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'JSON.stringify' },
-  box: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'JSON.stringify' },
-  path: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'JSON.stringify' },
-  polygon: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'JSON.stringify' },
-  circle: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'JSON.stringify' },
+  vector: {
+    validator: 'v.array(v.float64())',
+    typescript: 'number[]',
+    needsTransform: true,
+    transformFn: 'parseVector',
+  },
+  bytea: {
+    validator: 'v.bytes()',
+    typescript: 'ArrayBuffer',
+    needsTransform: true,
+    transformFn: 'toBytes',
+  },
+  inet: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  cidr: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  macaddr: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  macaddr8: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  point: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'JSON.stringify',
+  },
+  line: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'JSON.stringify',
+  },
+  lseg: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'JSON.stringify',
+  },
+  box: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'JSON.stringify',
+  },
+  path: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'JSON.stringify',
+  },
+  polygon: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'JSON.stringify',
+  },
+  circle: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'JSON.stringify',
+  },
   bit: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  'bit varying': { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  varbit: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  tsvector: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'String' },
-  tsquery: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'String' },
-  int4range: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'rangeToString' },
-  int8range: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'rangeToString' },
-  numrange: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'rangeToString' },
-  tsrange: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'rangeToString' },
-  tstzrange: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'rangeToString' },
-  daterange: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'rangeToString' },
-  array: { validator: 'v.array(v.any())', typescript: 'any[]', needsTransform: false },
-  xml: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'String' },
+  'bit varying': {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  varbit: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  tsvector: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'String',
+  },
+  tsquery: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'String',
+  },
+  int4range: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'rangeToString',
+  },
+  int8range: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'rangeToString',
+  },
+  numrange: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'rangeToString',
+  },
+  tsrange: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'rangeToString',
+  },
+  tstzrange: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'rangeToString',
+  },
+  daterange: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'rangeToString',
+  },
+  array: {
+    validator: 'v.array(v.any())',
+    typescript: 'any[]',
+    needsTransform: false,
+  },
+  xml: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'String',
+  },
   oid: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  ltree: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  lquery: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  ltxtquery: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  hstore: { validator: 'v.any()', typescript: 'Record<string, string | null>', needsTransform: true, transformFn: 'parseHstore' },
-  cube: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'cubeToString' },
-  isbn: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  isbn13: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  issn: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  issn13: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  'cidr[]': { validator: 'v.array(v.string())', typescript: 'string[]', needsTransform: false },
-  'inet[]': { validator: 'v.array(v.string())', typescript: 'string[]', needsTransform: false },
+  ltree: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  lquery: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  ltxtquery: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  hstore: {
+    validator: 'v.any()',
+    typescript: 'Record<string, string | null>',
+    needsTransform: true,
+    transformFn: 'parseHstore',
+  },
+  cube: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'cubeToString',
+  },
+  isbn: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  isbn13: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  issn: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  issn13: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  'cidr[]': {
+    validator: 'v.array(v.string())',
+    typescript: 'string[]',
+    needsTransform: false,
+  },
+  'inet[]': {
+    validator: 'v.array(v.string())',
+    typescript: 'string[]',
+    needsTransform: false,
+  },
 };
 
 const MYSQL_TYPES: Record<string, ConvexTypeMapping> = {
-  varchar: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  char: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  text: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  tinytext: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  mediumtext: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  longtext: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  enum: { validator: 'v.string()', typescript: 'string', needsTransform: false },
+  varchar: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  char: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  text: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  tinytext: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  mediumtext: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  longtext: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  enum: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
   set: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  tinyint: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  smallint: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  mediumint: { validator: 'v.number()', typescript: 'number', needsTransform: false },
+  tinyint: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  smallint: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  mediumint: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
   int: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  integer: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  bigint: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'Number' },
-  float: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  double: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  decimal: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'parseFloat' },
-  numeric: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'parseFloat' },
-  bit: { validator: 'v.boolean()', typescript: 'boolean', needsTransform: true, transformFn: 'Boolean' },
-  date: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  datetime: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  timestamp: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  time: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  year: { validator: 'v.number()', typescript: 'number', needsTransform: false },
+  integer: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  bigint: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'Number',
+  },
+  float: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  double: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  decimal: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'parseFloat',
+  },
+  numeric: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'parseFloat',
+  },
+  bit: {
+    validator: 'v.boolean()',
+    typescript: 'boolean',
+    needsTransform: true,
+    transformFn: 'Boolean',
+  },
+  date: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  datetime: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  timestamp: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  time: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  year: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
   json: { validator: 'v.any()', typescript: 'any', needsTransform: false },
-  binary: { validator: 'v.bytes()', typescript: 'ArrayBuffer', needsTransform: true, transformFn: 'toBytes' },
-  varbinary: { validator: 'v.bytes()', typescript: 'ArrayBuffer', needsTransform: true, transformFn: 'toBytes' },
-  blob: { validator: 'v.bytes()', typescript: 'ArrayBuffer', needsTransform: true, transformFn: 'toBytes' },
-  tinyblob: { validator: 'v.bytes()', typescript: 'ArrayBuffer', needsTransform: true, transformFn: 'toBytes' },
-  mediumblob: { validator: 'v.bytes()', typescript: 'ArrayBuffer', needsTransform: true, transformFn: 'toBytes' },
-  longblob: { validator: 'v.bytes()', typescript: 'ArrayBuffer', needsTransform: true, transformFn: 'toBytes' },
-  geometry: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'JSON.stringify' },
-  point: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'JSON.stringify' },
-  linestring: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'JSON.stringify' },
-  polygon: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'JSON.stringify' },
+  binary: {
+    validator: 'v.bytes()',
+    typescript: 'ArrayBuffer',
+    needsTransform: true,
+    transformFn: 'toBytes',
+  },
+  varbinary: {
+    validator: 'v.bytes()',
+    typescript: 'ArrayBuffer',
+    needsTransform: true,
+    transformFn: 'toBytes',
+  },
+  blob: {
+    validator: 'v.bytes()',
+    typescript: 'ArrayBuffer',
+    needsTransform: true,
+    transformFn: 'toBytes',
+  },
+  tinyblob: {
+    validator: 'v.bytes()',
+    typescript: 'ArrayBuffer',
+    needsTransform: true,
+    transformFn: 'toBytes',
+  },
+  mediumblob: {
+    validator: 'v.bytes()',
+    typescript: 'ArrayBuffer',
+    needsTransform: true,
+    transformFn: 'toBytes',
+  },
+  longblob: {
+    validator: 'v.bytes()',
+    typescript: 'ArrayBuffer',
+    needsTransform: true,
+    transformFn: 'toBytes',
+  },
+  geometry: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'JSON.stringify',
+  },
+  point: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'JSON.stringify',
+  },
+  linestring: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'JSON.stringify',
+  },
+  polygon: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'JSON.stringify',
+  },
 };
 
 const SQLITE_TYPES: Record<string, ConvexTypeMapping> = {
-  integer: { validator: 'v.number()', typescript: 'number', needsTransform: false },
+  integer: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
   int: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  tinyint: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  smallint: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  mediumint: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  bigint: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  int2: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  int8: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  real: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  double: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  'double precision': { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  float: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  numeric: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  decimal: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  text: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  character: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  varchar: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  'varying character': { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  nchar: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  'native character': { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  nvarchar: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  clob: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  blob: { validator: 'v.bytes()', typescript: 'ArrayBuffer', needsTransform: true, transformFn: 'toBytes' },
-  boolean: { validator: 'v.boolean()', typescript: 'boolean', needsTransform: true, transformFn: 'Boolean' },
-  bool: { validator: 'v.boolean()', typescript: 'boolean', needsTransform: true, transformFn: 'Boolean' },
-  date: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  datetime: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  timestamp: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  json: { validator: 'v.any()', typescript: 'any', needsTransform: true, transformFn: 'JSON.parse' },
+  tinyint: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  smallint: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  mediumint: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  bigint: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  int2: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  int8: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  real: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  double: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  'double precision': {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  float: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  numeric: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  decimal: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  text: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  character: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  varchar: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  'varying character': {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  nchar: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  'native character': {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  nvarchar: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  clob: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  blob: {
+    validator: 'v.bytes()',
+    typescript: 'ArrayBuffer',
+    needsTransform: true,
+    transformFn: 'toBytes',
+  },
+  boolean: {
+    validator: 'v.boolean()',
+    typescript: 'boolean',
+    needsTransform: true,
+    transformFn: 'Boolean',
+  },
+  bool: {
+    validator: 'v.boolean()',
+    typescript: 'boolean',
+    needsTransform: true,
+    transformFn: 'Boolean',
+  },
+  date: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  datetime: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  timestamp: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  json: {
+    validator: 'v.any()',
+    typescript: 'any',
+    needsTransform: true,
+    transformFn: 'JSON.parse',
+  },
 };
 
 const MSSQL_TYPES: Record<string, ConvexTypeMapping> = {
-  char: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  varchar: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  text: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  nchar: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  nvarchar: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  ntext: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  xml: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'String' },
-  tinyint: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  smallint: { validator: 'v.number()', typescript: 'number', needsTransform: false },
+  char: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  varchar: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  text: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  nchar: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  nvarchar: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  ntext: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  xml: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'String',
+  },
+  tinyint: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  smallint: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
   int: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  bigint: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'Number' },
-  float: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  real: { validator: 'v.number()', typescript: 'number', needsTransform: false },
-  decimal: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'parseFloat' },
-  numeric: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'parseFloat' },
-  money: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'parseFloat' },
-  smallmoney: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'parseFloat' },
-  bit: { validator: 'v.boolean()', typescript: 'boolean', needsTransform: true, transformFn: 'Boolean' },
-  date: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  time: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  datetime: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  datetime2: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  smalldatetime: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  datetimeoffset: { validator: 'v.number()', typescript: 'number', needsTransform: true, transformFn: 'toTimestamp' },
-  uniqueidentifier: { validator: 'v.string()', typescript: 'string', needsTransform: false },
-  binary: { validator: 'v.bytes()', typescript: 'ArrayBuffer', needsTransform: true, transformFn: 'toBytes' },
-  varbinary: { validator: 'v.bytes()', typescript: 'ArrayBuffer', needsTransform: true, transformFn: 'toBytes' },
-  image: { validator: 'v.bytes()', typescript: 'ArrayBuffer', needsTransform: true, transformFn: 'toBytes' },
-  geometry: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'JSON.stringify' },
-  geography: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'JSON.stringify' },
-  sql_variant: { validator: 'v.any()', typescript: 'any', needsTransform: false },
-  hierarchyid: { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'String' },
+  bigint: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'Number',
+  },
+  float: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  real: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: false,
+  },
+  decimal: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'parseFloat',
+  },
+  numeric: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'parseFloat',
+  },
+  money: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'parseFloat',
+  },
+  smallmoney: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'parseFloat',
+  },
+  bit: {
+    validator: 'v.boolean()',
+    typescript: 'boolean',
+    needsTransform: true,
+    transformFn: 'Boolean',
+  },
+  date: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  time: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  datetime: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  datetime2: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  smalldatetime: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  datetimeoffset: {
+    validator: 'v.number()',
+    typescript: 'number',
+    needsTransform: true,
+    transformFn: 'toTimestamp',
+  },
+  uniqueidentifier: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: false,
+  },
+  binary: {
+    validator: 'v.bytes()',
+    typescript: 'ArrayBuffer',
+    needsTransform: true,
+    transformFn: 'toBytes',
+  },
+  varbinary: {
+    validator: 'v.bytes()',
+    typescript: 'ArrayBuffer',
+    needsTransform: true,
+    transformFn: 'toBytes',
+  },
+  image: {
+    validator: 'v.bytes()',
+    typescript: 'ArrayBuffer',
+    needsTransform: true,
+    transformFn: 'toBytes',
+  },
+  geometry: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'JSON.stringify',
+  },
+  geography: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'JSON.stringify',
+  },
+  sql_variant: {
+    validator: 'v.any()',
+    typescript: 'any',
+    needsTransform: false,
+  },
+  hierarchyid: {
+    validator: 'v.string()',
+    typescript: 'string',
+    needsTransform: true,
+    transformFn: 'String',
+  },
 };
 
 // ============================================================================
@@ -531,18 +1253,35 @@ export class TypeMapper {
    * Old (backward compat): new TypeMapper({ useBigInt: false, ... })
    * New (unified):         new TypeMapper({ dbType: 'mysql', typeMapping: {...}, convex: {...} })
    */
-  constructor(options?: Partial<TypeMappingOptions> | Partial<ConvexTypeMapperOptions> | TypeMapperOptions) {
+  constructor(
+    options?:
+      | Partial<TypeMappingOptions>
+      | Partial<ConvexTypeMapperOptions>
+      | TypeMapperOptions
+  ) {
     // Detect old-style constructor: if options has keys from TypeMappingOptions or ConvexTypeMapperOptions
     if (options && this.isLegacyOptions(options)) {
       this.dbType = 'postgresql';
       // Legacy options may contain TypeMappingOptions keys, ConvexTypeMapperOptions keys, or both
-      this.typeMappingOptions = { ...DEFAULT_TYPE_MAPPING_OPTIONS, ...(options as Partial<TypeMappingOptions>) };
-      this.convexOptions = { ...DEFAULT_CONVEX_OPTIONS, ...(options as Partial<ConvexTypeMapperOptions>) };
+      this.typeMappingOptions = {
+        ...DEFAULT_TYPE_MAPPING_OPTIONS,
+        ...(options as Partial<TypeMappingOptions>),
+      };
+      this.convexOptions = {
+        ...DEFAULT_CONVEX_OPTIONS,
+        ...(options as Partial<ConvexTypeMapperOptions>),
+      };
     } else {
       const opts = (options as TypeMapperOptions) || {};
       this.dbType = opts.dbType || 'postgresql';
-      this.typeMappingOptions = { ...DEFAULT_TYPE_MAPPING_OPTIONS, ...(opts.typeMapping || {}) };
-      this.convexOptions = { ...DEFAULT_CONVEX_OPTIONS, ...(opts.convex || {}) };
+      this.typeMappingOptions = {
+        ...DEFAULT_TYPE_MAPPING_OPTIONS,
+        ...(opts.typeMapping || {}),
+      };
+      this.convexOptions = {
+        ...DEFAULT_CONVEX_OPTIONS,
+        ...(opts.convex || {}),
+      };
     }
 
     this.transformMap = this.getTransformMap(this.dbType);
@@ -554,12 +1293,25 @@ export class TypeMapper {
   private isLegacyOptions(options: object): boolean {
     // Keys from the old TypeMappingOptions interface
     const legacyTypeMappingKeys = new Set([
-      'useStrict', 'useBigInt', 'useDate', 'useDecimal', 'enumAsUnion', 'nullableAsOptional',
+      'useStrict',
+      'useBigInt',
+      'useDate',
+      'useDecimal',
+      'enumAsUnion',
+      'nullableAsOptional',
     ]);
     // Keys from the old ConvexTypeMapperOptions interface (passed directly, not nested under `convex`)
     const legacyConvexKeys = new Set([
-      'useBigInt64', 'useFloat64', 'jsonAsAny', 'arrayHandling', 'unknownTypeHandling',
-      'customTypeMappings', 'preserveComments', 'enumMappings', 'tableNameTransformer', 'useNullable',
+      'useBigInt64',
+      'useFloat64',
+      'jsonAsAny',
+      'arrayHandling',
+      'unknownTypeHandling',
+      'customTypeMappings',
+      'preserveComments',
+      'enumMappings',
+      'tableNameTransformer',
+      'useNullable',
     ]);
     // New-style options have `dbType`, `typeMapping`, or `convex` as top-level keys
     const newStyleKeys = new Set(['dbType', 'typeMapping', 'convex']);
@@ -567,7 +1319,9 @@ export class TypeMapper {
     // If any key is a new-style key, it's not legacy
     if (keys.some((key) => newStyleKeys.has(key))) return false;
     // If any key matches old TypeMappingOptions or old ConvexTypeMapperOptions, treat as legacy
-    return keys.some((key) => legacyTypeMappingKeys.has(key) || legacyConvexKeys.has(key));
+    return keys.some(
+      (key) => legacyTypeMappingKeys.has(key) || legacyConvexKeys.has(key)
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -762,7 +1516,12 @@ export class TypeMapper {
     if (this.dbType === 'mysql' && cleanType === 'tinyint') {
       const match = column.dataType.match(/tinyint\(1\)/i);
       if (match) {
-        return { validator: 'v.boolean()', typescript: 'boolean', needsTransform: true, transformFn: 'Boolean' };
+        return {
+          validator: 'v.boolean()',
+          typescript: 'boolean',
+          needsTransform: true,
+          transformFn: 'Boolean',
+        };
       }
     }
 
@@ -773,7 +1532,9 @@ export class TypeMapper {
     ) {
       const baseType = cleanType.replace('[]', '').replace('array', '').trim();
       const baseMapping = this.transformMap[baseType] || {
-        validator: 'v.any()', typescript: 'any', needsTransform: false,
+        validator: 'v.any()',
+        typescript: 'any',
+        needsTransform: false,
       };
       return {
         validator: `v.array(${baseMapping.validator})`,
@@ -797,7 +1558,12 @@ export class TypeMapper {
     }
 
     // Default fallback
-    return { validator: 'v.string()', typescript: 'string', needsTransform: true, transformFn: 'String' };
+    return {
+      validator: 'v.string()',
+      typescript: 'string',
+      needsTransform: true,
+      transformFn: 'String',
+    };
   }
 
   /**
@@ -850,7 +1616,8 @@ export class TypeMapper {
    */
   mapColumnToTypeScript(column: ColumnInfo): TypeScriptType {
     const baseType = this.mapPostgreSQLTypeToTypeScript(column.dataType);
-    const isOptional = this.typeMappingOptions.nullableAsOptional && column.isNullable;
+    const isOptional =
+      this.typeMappingOptions.nullableAsOptional && column.isNullable;
     const isArray = column.dataType.includes('[]');
 
     return {
@@ -1197,7 +1964,9 @@ ${properties}
   // Private Helpers
   // ═══════════════════════════════════════════════════════════════
 
-  private getTransformMap(dbType: DatabaseType): Record<string, ConvexTypeMapping> {
+  private getTransformMap(
+    dbType: DatabaseType
+  ): Record<string, ConvexTypeMapping> {
     switch (dbType) {
       case 'postgresql':
         return POSTGRESQL_TRANSFORM;
@@ -1342,11 +2111,7 @@ ${properties}
   }
 
   private cleanTypeName(pgType: string): string {
-    return pgType
-      .split('(')[0]
-      .split('[')[0]
-      .toLowerCase()
-      .trim();
+    return pgType.split('(')[0].split('[')[0].toLowerCase().trim();
   }
 }
 

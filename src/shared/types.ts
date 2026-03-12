@@ -340,10 +340,7 @@ export interface IConvexClient {
   countDocuments(tableName: string): Promise<number>;
 
   /** Fetch a single document by ID (returns null if not found) */
-  getDocument(
-    tableName: string,
-    id: ConvexId
-  ): Promise<ConvexDocument | null>;
+  getDocument(tableName: string, id: ConvexId): Promise<ConvexDocument | null>;
 
   /** Check connection */
   healthCheck(): Promise<boolean>;

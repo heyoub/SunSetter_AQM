@@ -12,10 +12,7 @@
  */
 
 import { Command } from 'commander';
-import {
-  createAdapter,
-  parseConnectionString,
-} from '../../adapters/index.js';
+import { createAdapter, parseConnectionString } from '../../adapters/index.js';
 import { SchemaIntrospector } from '../../introspector/schema-introspector.js';
 import {
   CodeGenerator,

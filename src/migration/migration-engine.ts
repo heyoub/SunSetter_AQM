@@ -55,8 +55,15 @@ import { MemoryMonitor } from './memory-monitor.js';
 import { DataMasker } from './data-masking.js';
 import { toError } from '../utils/errors.js';
 import { createConvexCircuitBreaker } from '../utils/circuit-breaker.js';
-import { ConnectionError, ConvexError, DataMigrationError } from '../cli/errors/index.js';
-import { SummaryReportGenerator, printSummaryToConsole } from '../cli/summary-report.js';
+import {
+  ConnectionError,
+  ConvexError,
+  DataMigrationError,
+} from '../cli/errors/index.js';
+import {
+  SummaryReportGenerator,
+  printSummaryToConsole,
+} from '../cli/summary-report.js';
 
 /**
  * Extended migration configuration with enterprise features
@@ -590,7 +597,9 @@ export class MigrationEngine {
       }
     } else {
       // Single schema introspection (use DB-appropriate default)
-      const schema = await introspector.introspectSchema(this.adapter!.getDefaultSchema());
+      const schema = await introspector.introspectSchema(
+        this.adapter!.getDefaultSchema()
+      );
       this.tables = schema.tables;
     }
 
@@ -1092,7 +1101,8 @@ export class MigrationEngine {
     if (!this.adapter) return 0;
     try {
       // Use first schema from multi-schema config or adapter's default
-      const schema = this.multiSchemaConfig.schemas[0] || this.adapter!.getDefaultSchema();
+      const schema =
+        this.multiSchemaConfig.schemas[0] || this.adapter!.getDefaultSchema();
       return await this.adapter.getTableRowCount(schema, tableName);
     } catch {
       return 0;

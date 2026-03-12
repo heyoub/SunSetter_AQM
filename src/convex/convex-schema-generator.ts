@@ -22,7 +22,10 @@ import type {
 import { TypeMapper as ConvexTypeMapper } from '../mapper/type-mapper.js';
 import { RelationshipAnalyzer } from './relationship-analyzer.js';
 import { toCamelCase, toPascalCase, escapeFieldName } from '../utils/naming.js';
-import { convertColumnCheckConstraints, applyCheckConstraintValidators } from './check-constraint-converter.js';
+import {
+  convertColumnCheckConstraints,
+  applyCheckConstraintValidators,
+} from './check-constraint-converter.js';
 
 /**
  * Default schema generator options
@@ -106,9 +109,10 @@ export class ConvexSchemaGenerator {
     if (table.checkConstraints && table.checkConstraints.length > 0) {
       for (const field of fields) {
         // Find the original column to get its data type
-        const col = table.columns.find(c =>
-          toCamelCase(c.columnName) === field.fieldName ||
-          escapeFieldName(toCamelCase(c.columnName)) === field.fieldName
+        const col = table.columns.find(
+          (c) =>
+            toCamelCase(c.columnName) === field.fieldName ||
+            escapeFieldName(toCamelCase(c.columnName)) === field.fieldName
         );
         if (col) {
           const conversions = convertColumnCheckConstraints(
@@ -117,13 +121,19 @@ export class ConvexSchemaGenerator {
             table.checkConstraints
           );
           if (conversions.length > 0) {
-            field.validator = applyCheckConstraintValidators(field.validator, conversions);
+            field.validator = applyCheckConstraintValidators(
+              field.validator,
+              conversions
+            );
             // Add constraint info to comment
-            const successfulConversions = conversions.filter(c => c.success);
-            if (successfulConversions.length > 0 && field.comment !== undefined) {
-              field.comment += ` [CHECK: ${successfulConversions.map(c => c.description).join('; ')}]`;
+            const successfulConversions = conversions.filter((c) => c.success);
+            if (
+              successfulConversions.length > 0 &&
+              field.comment !== undefined
+            ) {
+              field.comment += ` [CHECK: ${successfulConversions.map((c) => c.description).join('; ')}]`;
             } else if (successfulConversions.length > 0) {
-              field.comment = `CHECK: ${successfulConversions.map(c => c.description).join('; ')}`;
+              field.comment = `CHECK: ${successfulConversions.map((c) => c.description).join('; ')}`;
             }
           }
         }
@@ -553,9 +563,7 @@ export class ConvexSchemaGenerator {
       lines.push(`/** ${table.comment} */`);
     }
 
-    lines.push(
-      `export const ${toCamelCase(table.tableName)} = defineTable({`
-    );
+    lines.push(`export const ${toCamelCase(table.tableName)} = defineTable({`);
 
     for (const field of table.fields) {
       if (field.comment) {

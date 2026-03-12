@@ -209,7 +209,9 @@ async function testConnection(
 
     // Introspect schema to discover tables (use DB-appropriate default schema)
     const introspector = new SchemaIntrospector(adapter);
-    const schema = await introspector.introspectSchema(adapter.getDefaultSchema());
+    const schema = await introspector.introspectSchema(
+      adapter.getDefaultSchema()
+    );
 
     reporter.succeedSpinner(
       `Connected successfully! Found ${schema.tables.length} tables.`

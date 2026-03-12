@@ -269,14 +269,20 @@ export class SchemaIntrospector {
       // Add convexTableName to each table (skip prefix for the default schema)
       for (const table of schemaInfo.tables) {
         table.convexTableName = this.getConvexTableName(
-          schemaName, table.tableName, prefixTableNames, schemaSeparator
+          schemaName,
+          table.tableName,
+          prefixTableNames,
+          schemaSeparator
         );
         allTables.push(table);
       }
 
       for (const view of schemaInfo.views) {
         view.convexTableName = this.getConvexTableName(
-          schemaName, view.tableName, prefixTableNames, schemaSeparator
+          schemaName,
+          view.tableName,
+          prefixTableNames,
+          schemaSeparator
         );
         allViews.push(view);
       }

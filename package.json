@@ -4,6 +4,13 @@
   "description": "SunSetter AQM+ - Database to Convex Migration Tool with beautiful TUI. AQM = Actions, Queries, Mutations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "mcp-configs",
+    "codegen.config.example.json"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

@@ -714,7 +714,9 @@ export class TUIApp {
       // Introspect schema
       console.log(chalk.cyan('⏳ Introspecting schema...'));
       const introspector = new SchemaIntrospector(genAdapter);
-      const schema = await introspector.introspectSchema(genAdapter.getDefaultSchema());
+      const schema = await introspector.introspectSchema(
+        genAdapter.getDefaultSchema()
+      );
       console.log(chalk.green(`✓ Found ${schema.tables.length} tables`));
 
       // Table selection
@@ -903,7 +905,9 @@ export class TUIApp {
       // Introspect schema
       console.log(chalk.cyan('⏳ Introspecting schema...'));
       const introspector = new SchemaIntrospector(introAdapter);
-      const schema = await introspector.introspectSchema(introAdapter.getDefaultSchema());
+      const schema = await introspector.introspectSchema(
+        introAdapter.getDefaultSchema()
+      );
 
       // Close connection
       await introAdapter.disconnect();

@@ -270,7 +270,10 @@ export class MigrationVerifier {
       }
 
       // Fetch the Convex document and compare field values
-      const convexDoc = await this.convexClient.getDocument(tableName, convexId);
+      const convexDoc = await this.convexClient.getDocument(
+        tableName,
+        convexId
+      );
 
       if (!convexDoc) {
         results.push({
@@ -334,9 +337,13 @@ export class MigrationVerifier {
   ): Promise<Array<Record<string, unknown>>> {
     const rows: Array<Record<string, unknown>> = [];
 
-    for await (const batch of this.adapter.streamRows(this.adapter.getDefaultSchema(), tableName, {
-      batchSize: limit,
-    })) {
+    for await (const batch of this.adapter.streamRows(
+      this.adapter.getDefaultSchema(),
+      tableName,
+      {
+        batchSize: limit,
+      }
+    )) {
       rows.push(...batch.rows.slice(0, limit - rows.length));
       if (rows.length >= limit) break;
     }

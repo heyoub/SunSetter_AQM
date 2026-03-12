@@ -18,10 +18,7 @@ import {
   type DatabaseConfig,
   type DatabaseAdapter,
 } from '../../adapters/index.js';
-import {
-  SchemaIntrospector,
-  type TableInfo,
-} from '../../introspector/schema-introspector.js';
+import { type TableInfo } from '../../introspector/schema-introspector.js';
 import { normalizeTableInfo } from '../../introspector/normalize-schema.js';
 import {
   MigrationEngine,
@@ -39,7 +36,6 @@ import {
   MigrationError,
   ConfigurationError,
   ERROR_CODES,
-  createConnectionError,
 } from '../errors/index.js';
 import type { MigrationConfig, MigrationEvent } from '../../migration/types.js';
 import { EXIT_CODES } from '../exit-codes.js';
@@ -1360,7 +1356,7 @@ async function runFullMigration(
 async function runDataOnlyMigration(
   config: Partial<MigrationConfig>,
   reporter: ProgressReporter,
-  enhancementOptions: EnhancementOptions
+  _enhancementOptions: EnhancementOptions
 ): Promise<void> {
   reporter.startSpinner('Initializing migration engine...');
 

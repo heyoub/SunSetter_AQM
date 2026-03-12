@@ -22,7 +22,11 @@ import type {
   MutationGeneratorResult,
   ConvexApiVersion,
 } from '../../convex/types.js';
-import { toCamelCase, toPascalCase, escapeFieldName } from '../../utils/naming.js';
+import {
+  toCamelCase,
+  toPascalCase,
+  escapeFieldName,
+} from '../../utils/naming.js';
 import { BaseConvexGenerator } from './base-convex-generator.js';
 
 /**
@@ -505,5 +509,4 @@ ${argsDefinition},
 
     return null;
   }
-
 }

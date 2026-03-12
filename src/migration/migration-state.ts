@@ -423,7 +423,9 @@ export class MigrationStateManager implements IStateManager {
 
     const existing = this.currentState.tables.get(tableName);
     if (!existing) {
-      throw new DataMigrationError(`Table ${tableName} not found in migration state`);
+      throw new DataMigrationError(
+        `Table ${tableName} not found in migration state`
+      );
     }
 
     const updated = { ...existing, ...updates };

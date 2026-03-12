@@ -301,4 +301,3 @@ export function generateConvexIndexCode(
 
   return lines.join('\n');
 }
-

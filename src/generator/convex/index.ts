@@ -176,9 +176,8 @@ export class ConvexFunctionGenerator {
 
     // 4. Generate HTTP routes file if HTTP actions are enabled
     if (this.options.generateHttpActions) {
-      output.httpFile = this.httpActionGenerator.generateHttpFile(
-        normalizedTables
-      );
+      output.httpFile =
+        this.httpActionGenerator.generateHttpFile(normalizedTables);
     }
 
     // 5. Generate crons.ts
@@ -654,7 +653,6 @@ export class ConvexFunctionGenerator {
 
     return { valid: errors.length === 0, errors };
   }
-
 }
 
 /**

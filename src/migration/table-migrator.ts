@@ -595,7 +595,9 @@ export class TableMigrator {
     for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
       try {
         const ids = this.circuitBreaker
-          ? await this.circuitBreaker.execute(() => this.convexClient.batchInsert(table.tableName, documents))
+          ? await this.circuitBreaker.execute(() =>
+              this.convexClient.batchInsert(table.tableName, documents)
+            )
           : await this.convexClient.batchInsert(table.tableName, documents);
 
         // Success!
@@ -728,10 +730,7 @@ export class TableMigrator {
 
         // Call custom error handler if provided
         if (options.onRowError) {
-          options.onRowError(
-            rows[i] as Record<string, unknown>,
-            err
-          );
+          options.onRowError(rows[i] as Record<string, unknown>, err);
         }
 
         this.emit({
@@ -812,7 +811,11 @@ export class TableMigrator {
           this.idMapper.set(tableName, pgId as PostgresId, convexId);
           // Record for rollback capability
           if (this.rollbackManager) {
-            this.rollbackManager.recordMigratedRow(tableName, pgId as PostgresId, convexId);
+            this.rollbackManager.recordMigratedRow(
+              tableName,
+              pgId as PostgresId,
+              convexId
+            );
           }
           this.stateManager.storeIdMapping(
             tableName,

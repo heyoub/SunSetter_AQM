@@ -274,7 +274,11 @@ export function createProgressBar(
   return `[${bar}]${percentText}`;
 }
 
-export { formatNumber, formatBytes, formatDuration } from '../utils/formatting.js';
+export {
+  formatNumber,
+  formatBytes,
+  formatDuration,
+} from '../utils/formatting.js';
 
 /**
  * Get a status icon

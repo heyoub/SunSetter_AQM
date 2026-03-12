@@ -21,7 +21,11 @@ import type {
   QueryGeneratorResult,
   ConvexApiVersion,
 } from '../../convex/types.js';
-import { toCamelCase, toPascalCase, escapeFieldName } from '../../utils/naming.js';
+import {
+  toCamelCase,
+  toPascalCase,
+  escapeFieldName,
+} from '../../utils/naming.js';
 import { BaseConvexGenerator } from './base-convex-generator.js';
 
 /**
@@ -312,7 +316,9 @@ export const ${methodName} = query({
     textFields: ColumnInfo[]
   ): string {
     const searchFields = textFields.slice(0, 3); // Limit to 3 fields
-    const fieldNames = searchFields.map((f) => escapeFieldName(toCamelCase(f.columnName)));
+    const fieldNames = searchFields.map((f) =>
+      escapeFieldName(toCamelCase(f.columnName))
+    );
     const primarySearchField = fieldNames[0];
 
     return `/**
@@ -425,5 +431,4 @@ export const count = query({
         return 'v.string()';
     }
   }
-
 }

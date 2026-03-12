@@ -6,7 +6,12 @@ import {
   ColumnInfo,
 } from '../introspector/schema-introspector.js';
 import { TypeMapper } from '../mapper/type-mapper.js';
-import { toCamelCase, toPascalCase, toKebabCase, escapeFieldName } from '../utils/naming.js';
+import {
+  toCamelCase,
+  toPascalCase,
+  toKebabCase,
+  escapeFieldName,
+} from '../utils/naming.js';
 
 export interface GeneratorOptions {
   outputDir: string;
@@ -540,5 +545,4 @@ export default ${toCamelCase(table.tableName)};
 
     return decorators;
   }
-
 }

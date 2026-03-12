@@ -50,7 +50,9 @@ function parseConnectionString(connectionString: string): DatabaseConfig {
       dbType = DatabaseType.MSSQL;
       break;
     default:
-      throw new ConfigurationError(`Unsupported database protocol: ${protocol}`);
+      throw new ConfigurationError(
+        `Unsupported database protocol: ${protocol}`
+      );
   }
 
   // For SQLite, the path is the filename
@@ -392,10 +394,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
         await adapter.connect();
 
-        const { schema = adapter.getDefaultSchema(), includeRowCounts = true } = args as {
-          schema?: string;
-          includeRowCounts?: boolean;
-        };
+        const { schema = adapter.getDefaultSchema(), includeRowCounts = true } =
+          args as {
+            schema?: string;
+            includeRowCounts?: boolean;
+          };
 
         const tables = await adapter.getTables(schema);
         const tableInfos = [];
@@ -472,9 +475,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         const defaultSchema = adapter.getDefaultSchema();
         const columns = await adapter.getColumns(defaultSchema, tableName);
-        const primaryKeys = await adapter.getPrimaryKeys(defaultSchema, tableName);
+        const primaryKeys = await adapter.getPrimaryKeys(
+          defaultSchema,
+          tableName
+        );
         const indexes = await adapter.getIndexes(defaultSchema, tableName);
-        const rowCount = await adapter.getTableRowCount(defaultSchema, tableName);
+        const rowCount = await adapter.getTableRowCount(
+          defaultSchema,
+          tableName
+        );
 
         let sampleData: unknown[] = [];
         if (includeSampleData && rowCount > 0) {

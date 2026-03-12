@@ -381,7 +381,9 @@ export class DataTransformer {
         } else if (this.config.unknownTypeHandling === 'skip') {
           return null;
         } else {
-          throw new TransformError(`Unknown PostgreSQL type: ${column.dataType}`);
+          throw new TransformError(
+            `Unknown PostgreSQL type: ${column.dataType}`
+          );
         }
     }
   }

@@ -6,7 +6,7 @@
  * 2. Browser-based OAuth with localhost callback
  * 3. Manual credential entry fallback
  *
- * Inspired by: GitHub CLI, Vercel CLI, Stripe CLI
+ * Inspired by: GitHub CLI, Stripe CLI
  */
 
 import * as http from 'http';

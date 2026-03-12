@@ -2,7 +2,7 @@
 
 **The "110%" Database Migration Suite for Convex**
 
-[✨ Official Landing Page (Deployable to Vercel)](./landing/)
+[✨ Official Landing Page (Deployable to Cloudflare Pages)](./landing/)
 
 > **Auto-converts SQL constraints to Validators**, **Auto-suggests Indexes**, and **Generates type-safe Mutations/Queries**.
 

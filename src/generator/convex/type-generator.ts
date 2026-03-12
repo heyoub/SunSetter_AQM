@@ -71,7 +71,7 @@ ${types.join('\n\n')}
    * Generate the main document type
    */
   private generateDocumentType(table: TableInfo, pascalName: string): string {
-    const fields = table.columns
+    const fields = this.getUniqueColumns(table)
       .filter((col) => !this.shouldSkipColumn(col))
       .map((col) => {
         const fieldName = escapeFieldName(toCamelCase(col.columnName));
@@ -152,7 +152,7 @@ ${fields}
     table: TableInfo,
     pascalName: string
   ): string {
-    const relationFields = table.foreignKeys
+    const relationFields = this.getUniqueForeignKeys(table)
       .map((fk) => {
         const fieldName = escapeFieldName(toCamelCase(fk.columnName));
         const relatedPascal = toPascalCase(fk.referencedTable);

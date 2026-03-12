@@ -75,7 +75,7 @@ export class QueryGenerator extends BaseConvexGenerator<QueryGeneratorOptions> {
     queries.push(...getByQueries);
 
     // 4. search - Full-text search if text fields exist
-    const textFields = table.columns.filter((col) =>
+    const textFields = this.getUniqueColumns(table).filter((col) =>
       ['text', 'varchar', 'character varying'].includes(
         col.dataType.toLowerCase()
       )
@@ -208,7 +208,7 @@ export const list = query({
     const addedMethods = new Set<string>();
 
     // Generate getBy for foreign keys
-    for (const fk of table.foreignKeys) {
+    for (const fk of this.getUniqueForeignKeys(table)) {
       const fieldName = escapeFieldName(toCamelCase(fk.columnName));
       const methodName = `getBy${toPascalCase(fk.columnName)}`;
       const indexName = `by_${fieldName}`;
@@ -268,7 +268,9 @@ export const ${methodName} = query({
       addedMethods.add(methodName);
 
       const indexName = `by_${fieldName}`;
-      const column = table.columns.find((c) => c.columnName === idx.columnName);
+      const column = this.getUniqueColumns(table).find(
+        (c) => c.columnName === idx.columnName
+      );
       const convexType = column ? this.getConvexArgType(column) : 'v.string()';
 
       queries.push(`/**

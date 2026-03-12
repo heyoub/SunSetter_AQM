@@ -86,7 +86,7 @@ export const ${camelName}Validators = {
     camelName: string,
     pascalName: string
   ): string {
-    const fields = table.columns
+    const fields = this.getUniqueColumns(table)
       .filter((col) => !this.shouldSkipColumn(col))
       .map((col) => {
         const fieldName = escapeFieldName(toCamelCase(col.columnName));
@@ -220,9 +220,11 @@ ${fields},
    */
   private getFilterableFields(table: TableInfo): ColumnInfo[] {
     const indexedColumns = new Set(table.indexes.map((idx) => idx.columnName));
-    const fkColumns = new Set(table.foreignKeys.map((fk) => fk.columnName));
+    const fkColumns = new Set(
+      this.getUniqueForeignKeys(table).map((fk) => fk.columnName)
+    );
 
-    return table.columns.filter((col) => {
+    return this.getUniqueColumns(table).filter((col) => {
       // Skip large text fields
       if (col.characterMaximumLength && col.characterMaximumLength > 255)
         return false;

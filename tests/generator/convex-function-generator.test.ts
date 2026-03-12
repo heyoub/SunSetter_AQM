@@ -13,6 +13,13 @@ async function createGenerator(options?: Record<string, unknown>) {
   return new ConvexFunctionGenerator(options);
 }
 
+function expectNoAdjacentDuplicateField(content: string, fieldName: string) {
+  const escapedFieldName = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  expect(
+    content
+  ).not.toMatch(new RegExp(`${escapedFieldName}:.*\\n\\s+${escapedFieldName}:`));
+}
+
 function createColumn(
   columnName: string,
   dataType: string,
@@ -96,6 +103,9 @@ describe('ConvexFunctionGenerator', () => {
     const generator = await createGenerator();
     const output = generator.generate([table]);
     const queries = output.tables.get('cellstate_agent')?.queries ?? '';
+    const mutations = output.tables.get('cellstate_agent')?.mutations ?? '';
+    const validators = output.tables.get('cellstate_agent')?.validators ?? '';
+    const types = output.tables.get('cellstate_agent')?.types ?? '';
 
     expect(output.schema.match(/ownerPrincipalId:/g)).toHaveLength(1);
     expect(
@@ -106,6 +116,9 @@ describe('ConvexFunctionGenerator', () => {
     );
     expect(queries.match(/export const getByOwnerPrincipalId = query/g)).toHaveLength(1);
     expect(queries).not.toContain('export const search = query');
+    expectNoAdjacentDuplicateField(mutations, 'ownerPrincipalId');
+    expectNoAdjacentDuplicateField(validators, 'ownerPrincipalId');
+    expectNoAdjacentDuplicateField(types, 'ownerPrincipalId');
   });
 
   it('only emits search helpers when search indexes are enabled', async () => {

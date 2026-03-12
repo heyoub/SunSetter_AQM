@@ -76,7 +76,7 @@ export abstract class BaseConvexGenerator<
    * columns such as identity / serial / PK named "id").
    */
   protected getCreateFields(table: TableInfo): ColumnInfo[] {
-    return table.columns.filter((col) => {
+    return this.getUniqueColumns(table).filter((col) => {
       // Skip auto-increment/identity columns
       if (col.isIdentity) return false;
       // Skip serial columns
@@ -93,7 +93,7 @@ export abstract class BaseConvexGenerator<
    * and identity columns).
    */
   protected getUpdateFields(table: TableInfo): ColumnInfo[] {
-    return table.columns.filter((col) => {
+    return this.getUniqueColumns(table).filter((col) => {
       // Skip primary keys
       if (col.isPrimaryKey) return false;
       // Skip identity columns
@@ -202,5 +202,74 @@ export abstract class BaseConvexGenerator<
 
   protected normalizeTypeName(dataType: string): string {
     return dataType.split('(')[0].split('[')[0].toLowerCase().trim();
+  }
+
+  /**
+   * Dedupe columns defensively at generator time.
+   * This protects CRUD emitters even if upstream introspection returns overlaps.
+   */
+  protected getUniqueColumns(table: TableInfo): ColumnInfo[] {
+    const deduped = new Map<string, ColumnInfo>();
+
+    for (const column of table.columns) {
+      const existing = deduped.get(column.columnName);
+
+      if (!existing) {
+        deduped.set(column.columnName, { ...column });
+        continue;
+      }
+
+      deduped.set(column.columnName, {
+        ...existing,
+        dataType:
+          existing.dataType === 'USER-DEFINED'
+            ? column.dataType
+            : existing.dataType,
+        columnDefault: existing.columnDefault ?? column.columnDefault,
+        characterMaximumLength:
+          existing.characterMaximumLength ?? column.characterMaximumLength,
+        numericPrecision: existing.numericPrecision ?? column.numericPrecision,
+        numericScale: existing.numericScale ?? column.numericScale,
+        ordinalPosition: Math.min(
+          existing.ordinalPosition,
+          column.ordinalPosition
+        ),
+        isIdentity: existing.isIdentity || column.isIdentity,
+        isPrimaryKey: existing.isPrimaryKey || column.isPrimaryKey,
+        isForeignKey: existing.isForeignKey || column.isForeignKey,
+        foreignKeyTable: existing.foreignKeyTable ?? column.foreignKeyTable,
+        foreignKeyColumn: existing.foreignKeyColumn ?? column.foreignKeyColumn,
+        description: existing.description ?? column.description,
+        isGenerated: existing.isGenerated || column.isGenerated,
+        generationExpression:
+          existing.generationExpression ?? column.generationExpression,
+        generationType: existing.generationType ?? column.generationType,
+        domainName: existing.domainName ?? column.domainName,
+        domainBaseType: existing.domainBaseType ?? column.domainBaseType,
+      });
+    }
+
+    return Array.from(deduped.values()).sort(
+      (left, right) => left.ordinalPosition - right.ordinalPosition
+    );
+  }
+
+  protected getUniqueForeignKeys(table: TableInfo): TableInfo['foreignKeys'] {
+    const deduped = new Map<string, TableInfo['foreignKeys'][number]>();
+
+    for (const foreignKey of table.foreignKeys) {
+      const key = [
+        foreignKey.columnName,
+        foreignKey.referencedSchema,
+        foreignKey.referencedTable,
+        foreignKey.referencedColumn,
+      ].join('|');
+
+      if (!deduped.has(key)) {
+        deduped.set(key, { ...foreignKey });
+      }
+    }
+
+    return Array.from(deduped.values());
   }
 }

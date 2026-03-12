@@ -1,8 +1,17 @@
-import { ConvexFunctionGenerator } from '../../dist/generator/convex/index.js';
 import type {
   ColumnInfo,
   TableInfo,
 } from '../../src/introspector/schema-introspector';
+
+const convexGeneratorModuleUrl = new URL(
+  '../../dist/generator/convex/index.js',
+  import.meta.url
+);
+
+async function createGenerator(options?: Record<string, unknown>) {
+  const { ConvexFunctionGenerator } = await import(convexGeneratorModuleUrl.href);
+  return new ConvexFunctionGenerator(options);
+}
 
 function createColumn(
   columnName: string,
@@ -34,7 +43,7 @@ function createColumn(
 }
 
 describe('ConvexFunctionGenerator', () => {
-  it('dedupes repeated columns and generated index/getBy names, and emits schema commas', () => {
+  it('dedupes repeated columns and generated index/getBy names, and emits schema commas', async () => {
     const table: TableInfo = {
       tableName: 'cellstate_agent',
       schemaName: 'public',
@@ -84,7 +93,7 @@ describe('ConvexFunctionGenerator', () => {
       description: null,
     };
 
-    const generator = new ConvexFunctionGenerator();
+    const generator = await createGenerator();
     const output = generator.generate([table]);
     const queries = output.tables.get('cellstate_agent')?.queries ?? '';
 
@@ -99,7 +108,7 @@ describe('ConvexFunctionGenerator', () => {
     expect(queries).not.toContain('export const search = query');
   });
 
-  it('only emits search helpers when search indexes are enabled', () => {
+  it('only emits search helpers when search indexes are enabled', async () => {
     const table: TableInfo = {
       tableName: 'articles',
       schemaName: 'public',
@@ -112,7 +121,7 @@ describe('ConvexFunctionGenerator', () => {
       description: null,
     };
 
-    const generator = new ConvexFunctionGenerator({
+    const generator = await createGenerator({
       generateSearchIndexes: true,
     });
     const output = generator.generate([table]);
@@ -122,7 +131,7 @@ describe('ConvexFunctionGenerator', () => {
     expect(queries).toContain('export const search = query');
   });
 
-  it('maps pgvector columns to Convex float arrays and TypeScript number arrays', () => {
+  it('maps pgvector columns to Convex float arrays and TypeScript number arrays', async () => {
     const table: TableInfo = {
       tableName: 'documents',
       schemaName: 'public',
@@ -140,7 +149,7 @@ describe('ConvexFunctionGenerator', () => {
       description: null,
     };
 
-    const generator = new ConvexFunctionGenerator();
+    const generator = await createGenerator();
     const output = generator.generate([table]);
     const types = output.tables.get('documents')?.types ?? '';
 

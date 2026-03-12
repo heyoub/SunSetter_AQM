@@ -1,6 +1,5 @@
 export default {
   preset: 'ts-jest/presets/default-esm',
-  resolver: '<rootDir>/jest.resolver.cjs',
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
     '^.+\\.ts$': ['ts-jest', {

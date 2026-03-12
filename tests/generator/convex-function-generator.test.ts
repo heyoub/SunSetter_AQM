@@ -1,4 +1,4 @@
-import { ConvexFunctionGenerator } from '../../src/generator/convex/index';
+import { ConvexFunctionGenerator } from '../../dist/generator/convex/index.js';
 import type {
   ColumnInfo,
   TableInfo,

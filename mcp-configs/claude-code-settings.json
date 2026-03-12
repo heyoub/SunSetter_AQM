@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "sunsetter-aqm": {
+      "command": "npx",
+      "args": ["-y", "@heyoub/sunsetter-aqm", "--mcp"]
+    }
+  }
+}

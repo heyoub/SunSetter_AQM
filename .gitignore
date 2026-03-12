@@ -31,8 +31,8 @@ logs
 .env.production.local
 
 # Test connection files (may contain real credentials)
-test-connection.*
-*-connection-test.*
+/test-connection.*
+/*-connection-test.*
 
 # IDE files
 .vscode/
@@ -59,7 +59,7 @@ test.db
 *.sqlite3
 
 # Generated output (for testing)
-convex/
+/convex/
 out/
 1/
 *.prisma

@@ -1,5 +1,6 @@
 export default {
   preset: 'ts-jest/presets/default-esm',
+  resolver: '<rootDir>/jest.resolver.cjs',
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
     '^.+\\.ts$': ['ts-jest', {
@@ -7,8 +8,6 @@ export default {
     }],
   },
   moduleNameMapper: {
-    '^\\./base-convex-generator\\.js$':
-      '<rootDir>/src/generator/convex/base-convex-generator.ts',
     '^chalk$': '<rootDir>/tests/mocks/chalk.ts',
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },

@@ -7,8 +7,10 @@ export default {
     }],
   },
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^\\./base-convex-generator\\.js$':
+      '<rootDir>/src/generator/convex/base-convex-generator.ts',
     '^chalk$': '<rootDir>/tests/mocks/chalk.ts',
+    '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   testEnvironment: 'node',
   testMatch: ['**/tests/**/*.test.ts', '**/tests/**/*.bench.ts'],
